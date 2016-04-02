@@ -1,1 +1,0 @@
-#HaLSTM: A LSTM Implementation in Halide
