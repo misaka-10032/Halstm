@@ -1,6 +1,6 @@
 {
   "name": "Halstm",
   "tagline": "Halide-LSTM",
-  "body": "# Halstm -- when LSTM meets Halide\r\n\r\n## Background\r\n\r\n## Goals\r\n\r\n## Schedule",
+  "body": "# Halstm -- when LSTM meets Halide\r\n\r\n## Summary\r\n\r\nHalstm is a high-performance implementation of LSTM based on Halide. It's portable to multiple platforms and architectures thanks to the powerful backend of Halide.\r\n\r\n## Background\r\n\r\n[Halide](http://halide-lang.org/) is a language for high-performance image processing; [LSTM](https://en.wikipedia.org/wiki/Long_short-term_memory) is one of the core layers in [RNN](https://en.wikipedia.org/wiki/Recurrent_neural_network). Basically, the forward and backward operators in neural networks are based on matrix operations. Therefore, Halide comes to play because whatever it's able to do on the images can also be done on the matrices. Halide saves extra efforts in writing boilerplate for optimization, and allows programmers to focus on the substantial scheduling work. Using Halide along may not results in significant faster code than the high-performance math libraries such as MLK. However, by fine-tuning a pipeline which minimizes work and has nice cache locality, it's believed that we can achieve comparable performance. After all, one of the most attractive feature of Halide is its compatibility across multiple platforms and architectures.\r\n\r\n## Challenge\r\n\r\n## Goals\r\n\r\n## Schedule",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
