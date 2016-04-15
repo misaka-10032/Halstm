@@ -11,7 +11,7 @@
 namespace halstm {
 
   inline int sgemm(bool transA, bool transB, float a, buffer_t *A, buffer_t *B, float b, buffer_t *C) {
-    halide_sgemm(transA, transB, a, A, B, b, C);
+    return halide_sgemm(transA, transB, a, A, B, b, C);
   }
 
 }
