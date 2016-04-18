@@ -12,6 +12,8 @@
 
 using namespace Halide;
 
+
+
 class Layer {
 public:
   virtual void Forward(Func& in, Func& out) = 0;

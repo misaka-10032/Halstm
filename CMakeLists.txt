@@ -27,3 +27,5 @@ if(CXXTEST_FOUND)
             ${PROJECT_SOURCE_DIR}/test/test_layer_lstm.h)
     target_link_libraries(test_layer Halstm-maths)
 endif()
+
+add_executable(play src/play.cpp)

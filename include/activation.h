@@ -14,19 +14,16 @@
 
 using namespace Halide;
 
-Var i,j;
-
-template <class T>
 class Activation {
 
 public:
+  Func input;
+  Func sigmoid;
 
-  Func tanh, sigmoid;
-  Halide::Func input;
+  Var x, y;
 
   Activation(Func in): input(in){
-    tanh(i, j) = Halide::tanh(input(i, j));
-    sigmoid(i, j) = 1.0f / (1.0f + Halide::fast_exp(input(i, j)));
+    sigmoid(x, y) = 1.0f / ( 1.0f + Halide::fast_exp(-input));
   }
 };
 
