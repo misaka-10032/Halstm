@@ -37,6 +37,7 @@ if(CXXTEST_FOUND)
     enable_testing()
     CXXTEST_ADD_TEST(test_layer test_layer_lstm.cpp
             ${PROJECT_SOURCE_DIR}/test/test_layer_lstm.h
-            ${CAFFE_SRC})
+#            ${CAFFE_SRC}
+    )
     target_link_libraries(test_layer ${LIBS})
 endif()
