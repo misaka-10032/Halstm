@@ -1,0 +1,99 @@
+<h1>
+  <a id="halstm----when-lstm-meets-halide" class="anchor" href="#halstm----when-lstm-meets-halide" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Halstm -- when LSTM meets Halide</h1>
+
+<h2>
+  <a id="summary" class="anchor" href="#summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Summary</h2>
+
+<p>Halstm is a high-performance implementation of LSTM based on Halide. It's portable to multiple platforms and architectures thanks to the powerful backend of Halide.</p>
+
+<h2>
+  <a id="background" class="anchor" href="#background" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Background</h2>
+
+<p><a href="http://halide-lang.org/">Halide</a> is a language for high-performance image processing; <a href="https://en.wikipedia.org/wiki/Long_short-term_memory">LSTM</a> is one of the core layers in <a href="https://en.wikipedia.org/wiki/Recurrent_neural_network">RNN</a>. Basically, the forward and backward operators in neural networks are based on matrix operations. Therefore, Halide comes to play because whatever it's able to do on the images can also be done on the matrices. Halide saves extra efforts in writing boilerplate for optimization, and allows programmers to focus on the substantial scheduling work. Using Halide along may not results in significant faster code than the high-performance math libraries such as MLK. However, by fine-tuning a pipeline which minimizes work and has nice cache locality, it's believed that we can achieve comparable performance. After all, one of the most attractive feature of Halide is its compatibility across multiple platforms and architectures.</p>
+
+<h2>
+  <a id="challenges" class="anchor" href="#challenges" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Challenges</h2>
+
+<p>Challenge comes in two folds: on one hand, we haven't implemented LSTM before. We have used well implemented LSTM in <a href="https://lasagne.readthedocs.org/en/latest/">Lasagne</a> and <a href="http://deeplearning.net/software/theano/">Theano</a>, but have not digged down into implementation details. The topology structure of LSTM makes it not trivial to conduct derivatives in the training process. A deep understanding of Recurrent Neural Network(RNN) and LSTM is required to engineering it from scratch. On the other hand, it may take some time for us to digest the abstraction and implementation of Halide. Halide provides excellent abstraction for developers to write tight code, but it still requires understanding on the scheduling policies and tricks to exploit program's parallelsim and locality properties, which demands research efforts and experiences.</p>
+
+<h2>
+  <a id="goals" class="anchor" href="#goals" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Goals</h2>
+
+<h5>
+  <a id="plan-to-achieve" class="anchor" href="#plan-to-achieve" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Plan to achieve</h5>
+
+<ul>
+  <li>Implement LSTM with Halide for CPU</li>
+  <li>Achieve comparable benchmark with Theano and TensorFlow</li>
+</ul>
+
+<h5>
+  <a id="hope-to-achieve" class="anchor" href="#hope-to-achieve" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Hope to achieve</h5>
+
+<ul>
+  <li>Optimize scheduling and beat Theano</li>
+  <li>Implement sheduling for GPU </li>
+</ul>
+
+<h2>
+  <a id="resource" class="anchor" href="#resource" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Resource</h2>
+
+<p>Ravi has implemented <a href="https://github.com/ravi-teja-mullapudi/Halide-NN">Halide-NN</a>, which implements basic layers in a CNN with CPU scheduling. Last year, Jeffrey and Jeff have implemented <a href="https://github.com/jczhang/espresso">Espresso</a>, which is CNN with GPU scheduling. We may reference these two projects in architecting the neural network framework. However, no one has implemented LSTM yet. For this part, we will read the <a href="http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf">related papers</a> and <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">tutorials</a>, and current implementations in <a href="http://deeplearning.net/tutorial/lstm.html">Theano</a> and <a href="https://www.tensorflow.org/versions/r0.7/tutorials/recurrent/index.html">TensorFlow</a>.</p>
+
+<h2>
+  <a id="schedule" class="anchor" href="#schedule" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Schedule</h2>
+
+<h5>
+  <a id="week1-backgrounds-2016-april-1---2016-april-3" class="anchor" href="#week1-backgrounds-2016-april-1---2016-april-3" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Week1: Backgrounds (2016 April 1 - 2016 April 3)</h5>
+
+<ul>
+  <li>Go through Halide's tutorial, documents and source code to learn the image programming language.</li>
+  <li>Get a high level understanding about RNN and LSTM, and their application on NLP tasks.</li>
+</ul>
+
+<h5>
+  <a id="week2-theoretical-research-2016-april-4---2016-april-10" class="anchor" href="#week2-theoretical-research-2016-april-4---2016-april-10" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Week2: Theoretical Research (2016 April 4 - 2016 April 10)</h5>
+
+<ul>
+  <li>Conduct research on theory of LSTM. Understand the forward and backward propagation's mathmatical form and derivative method.</li>
+  <li>Study current implementations of LSTM (e.g. TensorFlow).</li>
+  <li>Explore options of Halide's implementation on deep learning models.</li>
+</ul>
+
+<h5>
+  <a id="week3-coding-bootcamp-2016-april-11---2016-april-17" class="anchor" href="#week3-coding-bootcamp-2016-april-11---2016-april-17" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Week3: Coding Bootcamp (2016 April 11 - 2016 April 17)</h5>
+
+<ul>
+  <li>Start to implement the LSTM model in Halide.</li>
+  <li>Prepare checkpoint report.</li>
+</ul>
+
+<h5>
+  <a id="week4-robust-implementation-2016-april-18---2016-april-24" class="anchor" href="#week4-robust-implementation-2016-april-18---2016-april-24" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Week4: Robust Implementation (2016 April 18 - 2016 April 24)</h5>
+
+<ul>
+  <li>Engineering work on project debugging and optimization.</li>
+</ul>
+
+<h5>
+  <a id="week5-scheduling-optimization-2016-april-25---2016-may-1" class="anchor" href="#week5-scheduling-optimization-2016-april-25---2016-may-1" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Week5: Scheduling Optimization (2016 April 25 - 2016 May 1)</h5>
+
+<ul>
+  <li>Start experiments on collected datasets.</li>
+  <li>Explore scheduling policies in Halide to speed up the model's training and evaluation.</li>
+</ul>
+
+<h5>
+  <a id="week6-experiments-and-evaluation-2016-may-2---2016-may-8" class="anchor" href="#week6-experiments-and-evaluation-2016-may-2---2016-may-8" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Week6: Experiments and Evaluation (2016 May 2 - 2016 May 8)</h5>
+
+<ul>
+  <li>Select one or more applications for evaluation and comparision with baselines.</li>
+  <li>Analyze potential performance improvements or pitfalls.</li>
+  <li>Final report and presentation preparation.</li>
+</ul>
+
+<footer class="site-footer">
+  <span class="site-footer-owner"><a href="https://github.com/misaka-10032/Halstm">Halstm</a> is maintained by <a href="https://github.com/misaka-10032">misaka-10032</a>.</span>
+
+  <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+</footer>
