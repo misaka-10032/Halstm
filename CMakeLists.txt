@@ -43,3 +43,4 @@ if(CXXTEST_FOUND)
 endif()
 
 add_executable(play src/play.cpp)
+target_link_libraries(play ${LIBS})

@@ -12,19 +12,33 @@
 
 #include "Halide.h"
 
-using namespace Halide;
+//TODO: currently operate on 2-D array, see if need change
 
-class Activation {
+namespace halstm {
+/*
+ * Get a instance of tanh activation function
+ * - input: the last stage Halide Func in pipeline
+ */
+    Halide::Func define_tanh(Halide::Func input) {
+      Halide::Func result;
 
-public:
-  Func input;
-  Func sigmoid;
+      Halide::Var x, y;
+      result(x, y) = Halide::tanh(input(x, y));
 
-  Var x, y;
+      return result;
+    }
 
-  Activation(Func in): input(in){
-    sigmoid(x, y) = 1.0f / ( 1.0f + Halide::fast_exp(-input));
-  }
-};
+/*
+ * Get a instance of sigmoid activation function
+ * - input: the last stage Halide Func in pipeline
+ */
+    Halide::Func define_sigmoid(Halide::Func input) {
+      Halide::Func result;
 
+      Halide::Var x, y;
+      result(x, y) = 1.0f / (1.0f + Halide::fast_exp(-input(x, y)));
+
+      return result;
+    }
+}
 #endif //HALSTM_ACTIVATION_H
