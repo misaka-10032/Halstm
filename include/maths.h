@@ -8,9 +8,12 @@
 #ifndef HALSTM_MATHS_H
 #define HALSTM_MATHS_H
 
-#include "hblas/halide_blas.h"
+#include <Halide.h>
+using namespace Halide;
 
 namespace halstm {
-  inline int halstm_sgemm(bool transA, bool transB, float a, buffer_t *A, buffer_t *B, float b, buffer_t *C);
+  void hal_gemm(bool transA, bool transB, int M, int N, int K,
+                float alpha, Func &A, Func &B, float beta, Func &C);
 }
+
 #endif // HALSTM_MATHS_H
