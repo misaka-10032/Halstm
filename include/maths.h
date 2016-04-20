@@ -55,4 +55,5 @@ namespace halstm {
       return result;
     }
 }
+
 #endif // HALSTM_MATHS_H
