@@ -5,6 +5,7 @@
 #include "Halide.h"
 #include "activation.h"
 #include "maths.h"
+#include "layers.h"
 
 using namespace Halide;
 
@@ -21,6 +22,11 @@ using namespace Halide;
 //  HALIDE_ATTRIBUTE_ALIGN(1) uint8_t _padding[10 - sizeof(void *)];
 //} buffer_t;
 
+
+/*
+ * Should be used later as I/O component
+ * Populate buffer_t struct to generate input Image<T>, which is a matrix
+ */
 template <class T>
 void populate_data_buffer(buffer_t * buffer , T* host_addr, int32_t stride_0, int32_t stride_1, int32_t extent_0, int32_t extent_1, int32_t elem_size){
   buffer->host = (uint8_t*)host_addr;
@@ -60,32 +66,83 @@ int main(int argc, char **argv){
 //  sigmoid_ac.trace_stores();
 //  Image<float> r2 = sigmoid_ac.realize(2,2);
 
-  // test matrix multiplication
+  //-------------test matrix multiplication
 
-  int m = 2, k = 2, n = 2;
-  float A[m*k]; A[0] = 2.0; A[1] = 3.0; A[2] = 1.0; A[3] = 5.0;
-  float B[k*n]; B[0] = 4.0; B[1] = -2.0; B[2] = 3.0; B[3] = 2.0;
-  float C[m*n]; C[0] = 0.0; C[1] = 0.0; C[2] = 0.0; C[3] = 0.0;
-  float alpha = 1.0f;
-  float beta = 1.0f;
+  const int m = 2, l = 2, n = 3;
+  float A[m*l] = {0}; //A[0] = -2.0; A[1] = 1.0; A[2] = 2.0; A[3] = 3.0;
+  float B[l*n] = {0}; //B[0] = 1.0; B[1] = -2.0; B[2] = 1.0; B[3] = 2.0; B[4] = -2.0; B[5] = -1.0;
+
 
   buffer_t mA = {0}, mB = {0}, mC = {0};
   populate_data_buffer(&mA, &A[0], 1,2,2,2,4);
-  populate_data_buffer(&mB, &B[0], 1,2,2,2,4);
-  populate_data_buffer(&mC, &C[0], 1,2,2,2,4);
+  populate_data_buffer(&mB, &B[0], 1,3,3,2,4);
   Image<float> inputA(&mA, "matrixA");
   Image<float> inputB(&mB, "matrixB");
-  Image<float> inputC(&mC, "matrixC");
+  printf("A(%d, %d)\n", inputA.width(), inputA.height());
+  printf("B(%d, %d)\n", inputB.width(), inputB.height());
+  inputA(0, 0) = 3;
+  inputA(1, 0) = 1;
+  inputA(0, 1) = 4;
+  inputA(1, 1) = 2;
+  inputB(0, 0) = -1;
+  inputB(1, 0) = 1;
+  inputB(2, 0) = 0;
+  inputB(0, 1) = 1;
+  inputB(1, 1) = 2;
+  inputB(2, 1) = -1;
 
-  Var i, j;
-  Func funcA, funcB, funcC;
+  //printf("B(%d, %d) = %f\n", 2, 1, inputB(2,1));
+
+  Var i("i"), j("j"), k("k");
+  Func funcA, funcB;
   funcA(i, j) = inputA(i, j);
   funcB(i, j) = inputB(i, j);
-  funcC(i, j) = inputC(i, j);
 
-  Func sgemm = halstm::define_hal_gemm(false, false, 2,2,2,alpha, funcA, funcB, beta, funcC);
-  sgemm.trace_stores();
-  sgemm.realize(2,2);
+//  Func test1("A"), test2("B");
+//  test1(i, j) = inputA(i, j);
+//  test2(i, j) = inputA(i, j);
+//  Func test("C");
+//  test(k, j, i) = test1(k, i) * test2(j, k);
+//  test.print_loop_nest();
+//  test.trace_stores();
+//  test.realize(2,2,2);
+
+  Func matrix_dot = halstm::define_matrix_dot(funcA, funcB, 2);
+  Image<float> c(3,2);
+  matrix_dot.trace_stores();
+  matrix_dot.realize(c);
+
+  // -----------------test matrix add
+
+//  int m = 2;
+//  int n = 1;
+//
+//  float A[m*n]; A[0] = -2.0; A[1] = 1.0;
+//  float B[m*n]; B[0] = 1.0; B[1] = -3.0;
+//  buffer_t mA = {0}, mB = {0};
+//  populate_data_buffer(&mA, &A[0],1,1,1,2, 4);
+//  populate_data_buffer(&mB, &B[0],1,1,1,2, 4);
+//  Image<float> inputA(&mA, "matrixA");
+//  Image<float> inputB(&mB, "matrixB");
+//  printf("A(%d, %d)\n", inputA.height(), inputA.width());
+//  printf("B(%d, %d)\n", inputB.height(), inputB.width());
+//
+//  Var i, j, l;
+//  Func funcA, funcB;
+//  funcA(i, j) = inputA(i, j);
+//  funcB(i, j) = inputB(i, j);
+//
+//  Func *matrix_add = halstm::define_matrix_add(funcA, funcB, m, n);
+//  Image<float> c(1, 2);
+//  matrix_add->trace_stores();
+//  matrix_add->realize(c);
+//  delete matrix_add;
+
+//  Var i, j;
+//  Func *test = new Func("heh");
+//  (*test)(i, j) = (i + j);
+//  test->trace_stores();
+//  test->realize(2,2);
 
   return 0;
 }
