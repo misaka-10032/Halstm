@@ -1,1 +1,0 @@
-# Halstm -- Midway Report

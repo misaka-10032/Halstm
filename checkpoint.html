@@ -1,0 +1,78 @@
+<h1 id="toc_0">Halstm -- Checkpoint</h1>
+
+<h2 id="toc_1">Work So Far</h2>
+
+<ul>
+<li>Studied LSTM and Halide</li>
+<li>Designed code structure and test cases </li>
+<li>Integrated <a href="https://github.com/junhyukoh/caffe-lstm">caffe-lstm</a> into framework</li>
+<li>Implementation of basic components in LSTM: activation function, matrix multiplication, elementwise addition, etc.</li>
+</ul>
+
+<h3 id="toc_2">Code Structure</h3>
+
+<ul>
+<li><code>NetBuilder</code>
+
+<ul>
+<li><code>Append(...)</code>: append layers.</li>
+<li><code>Criteria(...)</code>: define the criteria layer, e.g. softmax.</li>
+<li><code>Build()</code>: chain up layers, and build an entire pipeline.</li>
+</ul></li>
+<li><code>Net</code>: a materialized network.
+
+<ul>
+<li><code>Forward(...)</code>: do an actual forward.</li>
+<li><code>Backward(...)</code>: do an actual backward.</li>
+</ul></li>
+<li><code>Layer</code>: a layer that defines pipeline operations only; not yet materialized.
+
+<ul>
+<li><code>Forward(Func&amp; in, Func&amp; out)</code>: defines forward operations</li>
+<li><code>Backward(Func&amp; out, Func&amp; in)</code>: defines backward operations</li>
+</ul></li>
+</ul>
+
+<h3 id="toc_3">Test Case</h3>
+
+<p><a href="https://github.com/junhyukoh/caffe-lstm">caffe-lstm</a> has a well implemented LSTM layer. Our correctness goal is to match this result, given input, output, and weight the same. Now the LSTM part and its dependency have been extracted into our project; it can successfully compile and run.</p>
+
+<h2 id="toc_4">Problems We&#39;ve Met</h2>
+
+<ul>
+<li><p>Halide is a programming language designed for image processing. Using it to conduct linear algebra operations yields implementation difficulties to some degree. Especially, the order a Halide function defines for execution order is object to the intuition of matrix index&#39;s visiting. Trying to overcome this and accelerate the progress of implementation.</p></li>
+<li><p>Halide is released not for a very long time. Resource is limited when debugging the Halide program.</p></li>
+</ul>
+
+<h2 id="toc_5">Calibrated Goals and Deliverables</h2>
+
+<p>We may not finally be able to build an LSTM app, but still we want to ensure that we&#39;ve implemented the LSTM layer correct. Possibly, we also want to see how fast it could be, and how we can improve it.</p>
+
+<ul>
+<li>As correctness check, we will match our result with that of <a href="https://github.com/junhyukoh/caffe-lstm">caffe-lstm</a>, given some randomly generated input/output/weight.</li>
+<li>As performance measure, we will stack several LSTM layers together, and see if the pipelined version can possibly be faster.</li>
+</ul>
+
+<p>Possibly, we also want to chain up the forward and backward process and actually train on some dataset. </p>
+
+<h2 id="toc_6">Refined Schedule</h2>
+
+<ul>
+<li><p>Week4 (April 18 - 24, 2016)</p>
+
+<ul>
+<li>Implement LSTM Forward; ensure correctness.</li>
+</ul></li>
+<li><p>Week5 (April 25 - May 1, 2016)</p>
+
+<ul>
+<li>Implement LSTM Backward; ensure correctness.</li>
+<li>Run performance test; adjust scheduling. </li>
+</ul></li>
+<li><p>Week6 (2016 May 2 - 2016 May 8)</p>
+
+<ul>
+<li>Adjust scheduling.</li>
+<li>Train on real dataset (if time permits, because extra work is needed to reformat data and implement an IO module). </li>
+</ul></li>
+</ul>

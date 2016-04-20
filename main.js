@@ -4,21 +4,21 @@
 
 function select(btn) {
     $("#proposal").css('background-color', 'rgba(255, 255, 255, 0.08)');
-    $("#midway").css('background-color', 'rgba(255, 255, 255, 0.08)');
+    $("#checkpoint").css('background-color', 'rgba(255, 255, 255, 0.08)');
     btn.css('background-color', 'rgba(255, 255, 255, 0.3)')
 }
 
 $(document).ready(function () {
-    $(".main-content").load("proposal.html");
-    select($("#proposal"));
+    $(".main-content").load("checkpoint.html");
+    select($("#checkpoint"));
 
     $("#proposal").click(function () {
         $(".main-content").load("proposal.html");
         select($("#proposal"));
     });
-    
-    $("#midway").click(function () {
-        $(".main-content").load("midway.html");
-        select($("#midway"));
+
+    $("#checkpoint").click(function () {
+        $(".main-content").load("checkpoint.html");
+        select($("#checkpoint"));
     })
 });
