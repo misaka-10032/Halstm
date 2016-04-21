@@ -28,13 +28,38 @@ using namespace Halide;
  * Populate buffer_t struct to generate input Image<T>, which is a matrix
  */
 template <class T>
-void populate_data_buffer(buffer_t * buffer , T* host_addr, int32_t stride_0, int32_t stride_1, int32_t extent_0, int32_t extent_1, int32_t elem_size){
+void populate_data_buffer_2D(buffer_t * buffer , T* host_addr, int32_t stride_0, int32_t stride_1,
+                             int32_t extent_0, int32_t extent_1, int32_t elem_size){
   buffer->host = (uint8_t*)host_addr;
   buffer->stride[0] = stride_0;
   buffer->stride[1] = stride_1;
   buffer->extent[0] = extent_0;
   buffer->extent[1] = extent_1;
   buffer->elem_size = elem_size;
+}
+
+template <class T>
+void populate_data_buffer_3D(buffer_t * buffer , T* host_addr, int32_t stride_0, int32_t stride_1, int32_t stride_2,
+                             int32_t extent_0, int32_t extent_1, int32_t extent_2, int32_t elem_size){
+  buffer->host = (uint8_t*)host_addr;
+  buffer->stride[0] = stride_0;
+  buffer->stride[1] = stride_1;
+  buffer->stride[2] = stride_2;
+  buffer->extent[0] = extent_0;
+  buffer->extent[1] = extent_1;
+  buffer->extent[2] = extent_2;
+  buffer->elem_size = elem_size;
+}
+
+void print_matrix(Image<float>matrix, int T, int row, int col){
+  for(int t = 0; t < T; t++) {
+    for (int i = 0; i < row; i++) {
+      for (int j = 0; j < col; j++)
+        printf("%f  ", matrix(j, i, t));
+      printf("\n");
+    }
+    printf("--------\n");
+  }
 }
 
 int main(int argc, char **argv){
@@ -68,49 +93,35 @@ int main(int argc, char **argv){
 
   //-------------test matrix multiplication
 
-  const int m = 2, l = 2, n = 3;
-  float A[m*l] = {0}; //A[0] = -2.0; A[1] = 1.0; A[2] = 2.0; A[3] = 3.0;
-  float B[l*n] = {0}; //B[0] = 1.0; B[1] = -2.0; B[2] = 1.0; B[3] = 2.0; B[4] = -2.0; B[5] = -1.0;
-
+  const int m = 1, l = 2, n = 2, r = 2;
+  float A[m*l] = {0};
+  float B[l*n*r] = {0};
 
   buffer_t mA = {0}, mB = {0}, mC = {0};
-  populate_data_buffer(&mA, &A[0], 1,2,2,2,4);
-  populate_data_buffer(&mB, &B[0], 1,3,3,2,4);
+
+  populate_data_buffer_2D(&mA, &A[0], 1,1,1,2,4);
+  populate_data_buffer_3D(&mB, &B[0], 1,2,4,2,2,2,4);
   Image<float> inputA(&mA, "matrixA");
   Image<float> inputB(&mB, "matrixB");
-  printf("A(%d, %d)\n", inputA.width(), inputA.height());
-  printf("B(%d, %d)\n", inputB.width(), inputB.height());
-  inputA(0, 0) = 3;
-  inputA(1, 0) = 1;
-  inputA(0, 1) = 4;
-  inputA(1, 1) = 2;
-  inputB(0, 0) = -1;
-  inputB(1, 0) = 1;
-  inputB(2, 0) = 0;
-  inputB(0, 1) = 1;
-  inputB(1, 1) = 2;
-  inputB(2, 1) = -1;
+
+  inputB(0, 0, 0) = 3; inputB(1, 0, 0) = 4;
+  inputB(0, 1, 0) = -2; inputB(1, 1, 0) = -1;
+  inputB(0, 0, 1) = 5; inputB(1, 0, 1) = 1;
+  inputB(0, 1, 1) = 4; inputB(1, 1, 1) = 2;
+
+  inputA(0, 0) = 1; inputA(1, 0) = -1;
 
   //printf("B(%d, %d) = %f\n", 2, 1, inputB(2,1));
 
-  Var i("i"), j("j"), k("k");
-  Func funcA, funcB;
+  Var i("i"), j("jl"), k("k");
+  Func funcA("funca"), funcB("funcb");
   funcA(i, j) = inputA(i, j);
-  funcB(i, j) = inputB(i, j);
+  funcB(i, j, k) = inputB(i, j, k);
 
-//  Func test1("A"), test2("B");
-//  test1(i, j) = inputA(i, j);
-//  test2(i, j) = inputA(i, j);
-//  Func test("C");
-//  test(k, j, i) = test1(k, i) * test2(j, k);
-//  test.print_loop_nest();
-//  test.trace_stores();
-//  test.realize(2,2,2);
-
-  Func matrix_dot = halstm::define_matrix_dot(funcA, funcB, 2);
-  Image<float> c(3,2);
-  matrix_dot.trace_stores();
+  Func matrix_dot = halstm::matrix_dot(false, true, true, false, funcA, funcB, m, n, l);
+  Image<float> c(2,1,2);
   matrix_dot.realize(c);
+  print_matrix(c,2,1,2);
 
   // -----------------test matrix add
 

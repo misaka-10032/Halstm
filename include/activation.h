@@ -19,7 +19,7 @@ namespace halstm {
  * Get a instance of tanh activation function
  * - input: the last stage Halide Func in pipeline
  */
-    Halide::Func define_tanh(Halide::Func input) {
+    Halide::Func Tanh_(Halide::Func input) {
       Halide::Func result;
 
       Halide::Var x, y;
@@ -32,7 +32,7 @@ namespace halstm {
  * Get a instance of sigmoid activation function
  * - input: the last stage Halide Func in pipeline
  */
-    Halide::Func define_sigmoid(Halide::Func input) {
+    Halide::Func Sigmoid_(Halide::Func input) {
       Halide::Func result;
 
       Halide::Var x, y;

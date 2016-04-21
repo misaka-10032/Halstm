@@ -124,6 +124,7 @@ void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* weight_i = this->blobs_[0]->cpu_data();
   const Dtype* weight_h = this->blobs_[1]->cpu_data();
   const Dtype* bias = this->blobs_[2]->cpu_data();
+
   Dtype* pre_gate_data = pre_gate_.mutable_cpu_data();
   Dtype* gate_data = gate_.mutable_cpu_data();
   Dtype* cell_data = cell_.mutable_cpu_data();
