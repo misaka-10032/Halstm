@@ -12,7 +12,7 @@
 #include <maths.h>
 #include <vector>
 #include <string>
-#include <memory>
+#include <vector>
 #include "activation.h"
 
 using namespace Halide;
@@ -24,32 +24,6 @@ public:
   virtual void backward(Func& in, Func& out);
 };
 
-//class RNNLayer: public Layer{
-//public:
-//
-//  RNNLayer(int T, int N, int H, int I):
-//          T_(T), N_(N), H_(H), I_(I){}
-//
-//  // in(I_, N_, T_)
-//  // out(H_, N_, T_)
-//  void forward(Func &in, Func &out){
-//
-////    Var t, n, h, i;
-//
-//    in();
-
-//    Func trans;  // (N_, H_)
-//    for (int t = 0; t < T_; t++) {
-//      // in(t): (N_, I_)
-//      // Wxh: (I_, H_)
-//      out(t) = dot(in(t), Wxh);
-//      out(t) += dot(trans, Whh);
-//      out(t) = tanh(out(t));
-//      trans = out(t);
-//    }
-//  }
-//};
-
 template  <typename T>
 class LSTMLayer: public Layer{
 public:
@@ -58,89 +32,95 @@ public:
   int T_; // length of sequence
   int N_; // batch size
 
+  // parameters
   Image<T> weight_i_;    // (4*H x I)
   Image<T> weight_h_;    // (4*H x H)
   Image<T> bias_;        // (1 x 4*H)
-
-
   Image<T>  bias_multiplier_;  // (T x N x 1)
 
-  Image<T> top_;      // output values    (T x N x H)
-  Image<T> cell_;     // memory cell      (T x N x H)
-  Image<T> pre_gate_; // gate values before nonlinearty   (T x N x 4*H)
-  Image<T> gate_;     // gate values after nonlinearty    (T x N x 4*H)
+
+  std::vector<Image<T>> top_;
+  std::vector<Image<T>> cell_;
 
   Image<T> c_0_; // previous cell state value         (N x H)
   Image<T> h_0_; // previous hidden activation value  (N x H)
   Image<T> c_T_; // next cell state value             (N x H)
   Image<T> h_T_; // next hidden activation value      (N x H)
 
-// intermediate values
-  Image<T> h_to_gate_;   // (N x 4*H)
-//  Image<T> h_to_h_;   (N_ x H_)
 
   LSTMLayer(int t, int H, int I, int N):
-          T_(t), H_(H), I_(I), N_(N){}
+          T_(t), H_(H), I_(I), N_(N){
+
+    // Initialize space to store each hidden unit's result
+    top_ = std::vector<Image<T>>(T_, Image<T>());
+    cell_ = std::vector<Image<T>>(T_, Image<T>());
+  }
 
   // bottom (T x N x I)
-  // top    (T x N x I)
+  // out    (T x N x I)
   void forward(Func& bottom, Func & out){
     Var i, j, k;
 
-    Func top_data("top_data");
-    top_data(i, j, k) = top_(i, j, k);
     bool clip;    //TODO: figure out what is this
 
+    // load parameters from memory
     Func bias_multiplier("bias_multiplier");
     bias_multiplier(i, j, k) = bias_multiplier_(i, j, k);  // (T x N x 1)
-
-    Func weight_i("weight_i");    weight_i(i, j) = weight_i_(i, j);
-    Func weight_h("weight_h");    weight_h(i, j) = weight_h_(i, j);
-    Func bias("bias");            bias(i, j) = bias_(i, j);
-
-    Func pre_gate_data("pre_gate_data");  pre_gate_data(i, j, k) = pre_gate_(i, j, k);
-    Func gate_data("gate_data");          gate_data(i, j, k) = gate_(i, j, k);
-    Func cell_data("cell_data");          cell_data(i, j, k) = cell_(i, j, k);
-    Func h_to_gate("h_to_gate");          h_to_gate(i, j) = h_to_gate_(i, j);
-
-    // initialize previous state
-    Func c_0 ("c_0_");
-    Func h_0 ("h_0_");
-    if (clip) {
-      c_0(i, j) = c_T_(i, j);
-      h_0(i, j) = h_T_(i, j);
-    }else{
-      c_0(i, j) = c_0_(i, j);
-      h_0(i, j) = h_0_(i, j);
-    }
+    Func weight_i("weight_i");
+    weight_i(i, j) = weight_i_(i, j);
+    Func weight_h("weight_h");
+    weight_h(i, j) = weight_h_(i, j);
+    Func bias("bias");
+    bias(i, j) = bias_(i, j);
 
     // compute input to hidden forward propagation
+    Func pre_gate_data("pre_gate_data");
     pre_gate_data = halstm::matrix_dot(true, false, false, true, bottom, weight_i, N_, 4*H_, I_);
     Func multiplied_bias;
     multiplied_bias = halstm::matrix_dot(true, false, false, false, bias_multiplier, bias, N_, 4*H_, 1);
     pre_gate_data = halstm::matrix_add(true, pre_gate_data, multiplied_bias, N_, 4*H_);
 
     for (int t = 0; t < T_; t++){
-      RDom t_(t-1, t);
 
-      Func h_t("h_t");      // h to produce
-      Func c_t("c_t");      // c to produce
-      Func gate_t[4];      // 4 x N x H
-      Func h_to_gate_t("h_to_gate+t");
-
-      Func pre_gate_t("pre_gate_t"); pre_gate_t(i, j) = pre_gate_data(i, j, t);    // (N * 4*H)
+      // Load last hidden unit's result
       Func h_t_1("h_t_1");
       Func c_t_1("c_t_1");
-
-      if(t > 0){
-        h_t_1(i, j) = top_data(i, j, t-1);
-        c_t_1(i, j) = cell_data(i, j, t-1);
+      if (t > 0){
+        // load last hidden unit's result: cell state and output
+        Func top_data("top_data");
+        top_data(i, j) = (top_[t-1])(i, j);
+        Func cell_data("cell_data");
+        cell_data(i, j, k) = (cell_[t-1](i, j));
+        h_t_1(i, j) = top_data(i, j);
+        c_t_1(i, j) = cell_data(i, j);
       }else if (t == 0){
+        // initially, initialized with historical or default result
+        Func c_0 ("c_0_");
+        Func h_0 ("h_0_");
+        if (clip) {
+          c_0(i, j) = c_T_(i, j);
+          h_0(i, j) = h_T_(i, j);
+        }else{
+          c_0(i, j) = c_0_(i, j);
+          h_0(i, j) = h_0_(i, j);
+        }
         h_t_1(i, j) = h_0(i, j);
         c_t_1(i, j) = c_0(i, j);
       }
 
-      //hidden-to-hidden propagation
+      // to store final result from this unit
+      Func h_t("h_t");
+      Func c_t("c_t");
+
+      // to store values generated by 4 gates
+      Func gate_t[4];
+
+      // input-to-hidden propagation
+      Func pre_gate_t("pre_gate_t");
+      pre_gate_t(i, j) = pre_gate_data(i, j, t);
+
+      // hidden-to-hidden propagation
+      Func h_to_gate("h_to_gate");
       h_to_gate = halstm::matrix_dot(false, false, false, true, h_t_1, weight_h, N_, 4*H_, H_);
 
       // combine hidden input and last layer input
@@ -148,7 +128,6 @@ public:
 
       //apply nonlinearty
       RDom gates_range(0, H_, H_, 2*H_, 2*H_, 3*H_, 3*H_, 4*H_);
-
       Func pre_gate_t0("pre_gate_t0");
       pre_gate_t0(i, j) = pre_gate_t(gates_range.x, j);
       gate_t[0](i, j) = (halstm::Sigmoid_(pre_gate_t0))(i, j);
@@ -169,6 +148,10 @@ public:
       h_t(i, j) = halstm::matrix_mul(filter_gate, gate_t[2]);   //N_, H_
 
       out(i, j, t) = h_t(i, j);
+
+      //store this hidden unit's output
+      h_t.realize(top_[t]);
+      c_t.realize(cell_[t]);
     }
   }
 };
