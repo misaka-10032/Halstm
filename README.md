@@ -16,3 +16,13 @@ brew install halide
 ```
 brew install cxxtest
 ```
+
+* Caffe dependency
+
+```
+brew install boost
+brew install gflag
+brew install glog
+brew install protobuf
+brew install homebrew/science/hdf5
+```
