@@ -38,7 +38,6 @@ public:
   Image<T> bias_;        // (1 x 4*H)
   Image<T>  bias_multiplier_;  // (T x N x 1)
 
-
   std::vector<Image<T>> top_;
   std::vector<Image<T>> cell_;
 
@@ -56,8 +55,6 @@ public:
     cell_ = std::vector<Image<T>>(T_, Image<T>());
   }
 
-  // bottom (T x N x I)
-  // out    (T x N x I)
   void forward(Func& bottom, Func & out){
     Var i, j, k;
 
@@ -147,6 +144,7 @@ public:
       Func filter_gate;  filter_gate(i, j) = halstm::Tanh_(c_t);
       h_t(i, j) = halstm::matrix_mul(filter_gate, gate_t[2]);   //N_, H_
 
+      //TODO: potential runtime error, figure out how to aggregate #T results
       out(i, j, t) = h_t(i, j);
 
       //store this hidden unit's output

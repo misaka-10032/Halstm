@@ -187,7 +187,7 @@ void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
   }
   // Preserve cell state and output value for truncated BPTT
-  caffe_copy(N_*H_, cell_data + cell_.offset(T_-1), c_T_.mutable_cpu_data());
+  caf       fe_copy(N_*H_, cell_data + cell_.offset(T_-1), c_T_.mutable_cpu_data());
   caffe_copy(N_*H_, top_data + top_.offset(T_-1), h_T_.mutable_cpu_data());
 }
 
