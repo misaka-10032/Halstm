@@ -10,20 +10,25 @@
 
 #include <vector>
 #include <cxxtest/TestSuite.h>
-#include "layers.h"
 #include "caffe/proto/caffe.pb.h"
+
+// trick to use protected field
+#define protected public
+#include "layers.h"
 #include "caffe/common_layers.hpp"
+#undef protected
+
 #include "caffe/blob.hpp"
 #include "caffe/util/math_functions.hpp"
+#include "utils.h"
 
 using namespace std;
 using caffe::Blob;
 
-#define T_ 4
-#define N_ 3
-#define I_ 8
-#define H_ 6
-
+#define T_ 8
+#define N_ 6
+#define I_ 4
+#define H_ 2
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
@@ -69,12 +74,37 @@ public:
   }
 
   void TestForward() {
+    TS_TRACE("TestForward...");
     vector<Blob<float>*>* bottom = NewBlobVec(T_*N_, 1, I_, 1);
     vector<Blob<float>*>* top = NewBlobVec(T_*N_, 1, H_, 1);
     caffe::LstmLayer<float>* caffeLstmLayer = NewCaffeLstmLayer();
 
     caffeLstmLayer->LayerSetUp(*bottom, *top);
     caffeLstmLayer->Forward(*bottom, *top);
+    TS_TRACE("caffe layer setup!");
+
+    Image<float> in(I_, N_, T_);
+    Image<float> out(H_, N_, T_);
+    // setup out bottom
+    blobToImage(*(*bottom)[0], in);
+    TS_TRACE("in setup!");
+
+    Func fin(in);
+    Func fout(out);
+    // set up our weights
+    halstm::LstmLayer lstmLayer(T_, N_, I_, H_);
+    TS_TRACE("LstmLayer setup!");
+//    blobToImage(*caffeLstmLayer->blobs_[0], lstmLayer.weight_i_);
+//    blobToImage(*caffeLstmLayer->blobs_[1], lstmLayer.weight_h_);
+//    blobToImage(*caffeLstmLayer->blobs_[2], lstmLayer.bias_);
+    fillImage(lstmLayer.weight_i_, 1.f);
+    fillImage(lstmLayer.weight_h_, 1.f);
+    fillImage(lstmLayer.bias_, 1.f);
+    TS_TRACE("weights setup!");
+
+    lstmLayer.Forward(fin, fout);
+    TS_TRACE("forward success!");
+    TS_ASSERT(blobEqImage(*(*top)[0], out));
 
     DelBlobVec(bottom);
     DelBlobVec(top);
