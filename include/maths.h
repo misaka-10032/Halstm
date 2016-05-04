@@ -16,9 +16,11 @@ using namespace Halide;
 
 namespace halstm {
 
-  //operate on 2-D matrix
-  Func matrix_dot(bool RA, bool RB, bool transA, bool transB,
-                  Func& A, Func& B, int M, int N, int dim_k);
+  void dot_2dx2d(bool transA, bool transB, Func& A, Func& B,
+                 Var& x, Var& y, int rsize, Func& C);
+
+  void dot_3dx2d(bool transA, bool transB, Func& A, Func& B,
+                 Var& x, Var& y, Var& z, int rsize, Func& C);
 
 //  Func matrix_add_2d(Func& m1, Func& m2);
 

@@ -25,10 +25,10 @@
 using namespace std;
 using caffe::Blob;
 
-#define T_ 8
-#define N_ 6
+#define T_ 2
+#define N_ 3
 #define I_ 4
-#define H_ 2
+#define H_ 5
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
@@ -83,43 +83,46 @@ public:
     caffeLstmLayer->Forward(*bottom, *top);
     TS_TRACE("caffe layer setup!");
 
-    Image<float> in(I_, N_, T_);
-    Image<float> out(H_, N_, T_);
+    Image<float> in(I_, N_, T_, "in");
+    Image<float> out(H_, N_, T_, "out");
     // setup out bottom
     blobToImage(*(*bottom)[0], in);
     TS_TRACE("in setup!");
 
-    Func fin(in);
-    Func fout(out);
+    Var x, y, z;
+    Func fin("fin");
+    fin(x, y, z) = in(x, y, z);
+
     // set up our weights
     halstm::LstmLayer lstmLayer(T_, N_, I_, H_);
     TS_TRACE("LstmLayer setup!");
-//    blobToImage(*caffeLstmLayer->blobs_[0], lstmLayer.weight_i_);
-//    blobToImage(*caffeLstmLayer->blobs_[1], lstmLayer.weight_h_);
-//    blobToImage(*caffeLstmLayer->blobs_[2], lstmLayer.bias_);
-    fillImage(lstmLayer.weight_i_, 1.f);
-    fillImage(lstmLayer.weight_h_, 1.f);
-    fillImage(lstmLayer.bias_, 1.f);
+    Image<float> Wih(I_, 4*H_, "Wih");
+    Image<float> Whh(H_, 4*H_, "Whh");
+    Image<float> b(4*H_, 1, "b");
+    blobToImage(*caffeLstmLayer->blobs_[0], Wih);
+    blobToImage(*caffeLstmLayer->blobs_[1], Whh);
+    blobToImage(*caffeLstmLayer->blobs_[2], b);
+//    fillImage(Wih, 1.f);
+//    fillImage(Whh, 1.f);
+//    fillImage(b, 1.f);
+
+    lstmLayer.Wih_ = Func(Wih);
+    lstmLayer.Whh_ = Func(Whh);
+    lstmLayer.b_ = Func(b);
     TS_TRACE("weights setup!");
 
+    Func fout("fout");
     lstmLayer.Forward(fin, fout);
     TS_TRACE("forward success!");
+    // TODO: delete debug
+    fout.compile_to_lowered_stmt("fout.html", {}, HTML);
+    out = fout.realize(H_, N_, T_);
+    TS_TRACE("realize success!");
     TS_ASSERT(blobEqImage(*(*top)[0], out));
 
     DelBlobVec(bottom);
     DelBlobVec(top);
     DelCaffeLstmLayer(caffeLstmLayer);
-  }
-
-  void TestAddition() {
-    TS_ASSERT(1 + 1 > 1);
-    TS_ASSERT_EQUALS(1 + 1, 2);
-  }
-
-  void TestMultiplication() {
-    TS_TRACE("Starting multiplication test");
-    TS_ASSERT_EQUALS(2 * 2, 4);
-    TS_TRACE("Finishing multiplication test");
   }
 };
 

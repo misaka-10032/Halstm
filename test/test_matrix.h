@@ -19,14 +19,14 @@ using namespace halstm;
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
-  void TestDot2d_ffff() {
-    Var i, j;
+  void TestDot2dx2d_ff() {
+    Var x, y, z;
     Func fa;
-    fa(i, j) = cast<float>(i + j);
+    fa(x, y) = cast<float>(x + y);
     Image<float> A = fa.realize(2, 4);
 
     Func fb;
-    fb(i, j) = cast<float>(10 + i + j);
+    fb(x, y) = cast<float>(10 + x + y);
     Image<float> B = fb.realize(4, 2);
 
     Image<float> C0(4, 4);
@@ -36,8 +36,8 @@ public:
 
     Func fA = Func(A);
     Func fB = Func(B);
-    Func fC = matrix_dot(false, false, false, false,
-                         fA, fB, 4, 4, 2);
+    Func fC("fC");
+    dot_2dx2d(false, false, fA, fB, x, y, 2, fC);
     Image<float> C = fC.realize(4, 4);
 
     for (int i = 0; i < 16; i++) {
@@ -45,14 +45,14 @@ public:
     }
   }
 
-  void TestDot2d_ffft() {
-    Var i, j;
+  void TestDot2dx2d_ft() {
+    Var x, y, z;
     Func fa;
-    fa(i, j) = cast<float>(i + j);
+    fa(x, y) = cast<float>(x + y);
     Image<float> A = fa.realize(2, 4);
 
     Func fb;
-    fb(i, j) = cast<float>(10 + i + j);
+    fb(x, y) = cast<float>(10 + x + y);
     Image<float> B = fb.realize(2, 4);
 
     Image<float> C0(4, 4);
@@ -62,8 +62,8 @@ public:
 
     Func fA = Func(A);
     Func fB = Func(B);
-    Func fC = matrix_dot(false, false, false, true,
-                         fA, fB, 4, 4, 2);
+    Func fC("fC");
+    dot_2dx2d(false, true, fA, fB, x, y, 2, fC);
     Image<float> C = fC.realize(4, 4);
 
     for (int i = 0; i < 16; i++) {
@@ -71,14 +71,14 @@ public:
     }
   }
 
-  void TestDot2d_fftf() {
-    Var i, j;
+  void TestDot2dx2d_tf() {
+    Var x, y, z;
     Func fa;
-    fa(i, j) = cast<float>(i + j);
+    fa(x, y) = cast<float>(x + y);
     Image<float> A = fa.realize(4, 2);
 
     Func fb;
-    fb(i, j) = cast<float>(10 + i + j);
+    fb(x, y) = cast<float>(10 + x + y);
     Image<float> B = fb.realize(4, 2);
 
     Image<float> C0(4, 4);
@@ -88,8 +88,8 @@ public:
 
     Func fA = Func(A);
     Func fB = Func(B);
-    Func fC = matrix_dot(false, false, true, false,
-                         fA, fB, 4, 4, 2);
+    Func fC("fC");
+    dot_2dx2d(true, false, fA, fB, x, y, 2, fC);
     Image<float> C = fC.realize(4, 4);
 
     for (int i = 0; i < 16; i++) {
@@ -97,14 +97,14 @@ public:
     }
   }
 
-  void TestDot2d_fftt() {
-    Var i, j;
+  void TestDot2dx2d_tt() {
+    Var x, y, z;
     Func fa;
-    fa(i, j) = cast<float>(i + j);
+    fa(x, y) = cast<float>(x + y);
     Image<float> A = fa.realize(4, 2);
 
     Func fb;
-    fb(i, j) = cast<float>(10 + i + j);
+    fb(x, y) = cast<float>(10 + x + y);
     Image<float> B = fb.realize(2, 4);
 
     Image<float> C0(4, 4);
@@ -114,23 +114,23 @@ public:
 
     Func fA = Func(A);
     Func fB = Func(B);
-    Func fC = matrix_dot(false, false, true, true,
-                         fA, fB, 4, 4, 2);
-    Image<float> C = fC.realize(4, 4);
+    Func fC("fC");
+    dot_2dx2d(true, true, fA, fB, x, y, 2, fC);
 
+    Image<float> C = fC.realize(4, 4);
     for (int i = 0; i < 16; i++) {
       TS_ASSERT_EQUALS(C.data()[i], C0.data()[i]);
     }
   }
 
-  void TestDot2d_tfff() {
-    Var i, j, k;
+  void TestDot3dx2d_ff() {
+    Var x("x"), y("y"), z("z");
     Func fa;
-    fa(i, j, k) = cast<float>(i + j + k);
+    fa(x, y, z) = cast<float>(x + y + z);
     Image<float> A = fa.realize(2, 2, 2);
 
     Func fb;
-    fb(i, j) = cast<float>(10 + i + j);
+    fb(x, y) = cast<float>(10 + x + y);
     Image<float> B = fb.realize(4, 2);
 
     Image<float> C0(4, 4);
@@ -140,12 +140,38 @@ public:
 
     Func fA = Func(A);
     Func fB = Func(B);
-    Func fC = matrix_dot(true, false, false, false,
-                         fA, fB, 4, 4, 2);
+    Func fC("fC");
+    dot_3dx2d(false, false, fA, fB, x, y, z, 2, fC);
     Image<float> C = fC.realize(4, 2, 2);
 
-    for (int i = 0; i < 16; i++) {
-      TS_ASSERT_EQUALS(C.data()[i], C0.data()[i]);
+    for (int ii = 0; ii < 16; ii++) {
+      TS_ASSERT_EQUALS(C.data()[ii], C0.data()[ii]);
+    }
+  }
+
+  void TestDot3dx2d_ft() {
+    Var x("x"), y("y"), z("z");
+    Func fa;
+    fa(x, y, z) = cast<float>(x + y + z);
+    Image<float> A = fa.realize(2, 2, 2);
+
+    Func fb;
+    fb(x, y) = cast<float>(10 + x + y);
+    Image<float> B = fb.realize(2, 4);
+
+    Image<float> C0(4, 4);
+    float16 f16 = {11., 12., 13., 14., 32., 35., 38., 41.,
+                   32., 35., 38., 41., 53., 58., 63., 68.};
+    *((float16*) C0.data()) = f16;
+
+    Func fA = Func(A);
+    Func fB = Func(B);
+    Func fC("fC");
+    dot_3dx2d(false, true, fA, fB, x, y, z, 2, fC);
+    Image<float> C = fC.realize(4, 2, 2);
+
+    for (int ii = 0; ii < 16; ii++) {
+      TS_ASSERT_EQUALS(C.data()[ii], C0.data()[ii]);
     }
   }
 

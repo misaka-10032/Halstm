@@ -23,33 +23,25 @@ namespace halstm {
   class Layer {
   public:
     virtual void Forward(Func &in, Func &out) = 0;
+
     virtual void Backward(Func &dout, Func &din) = 0;
 
     virtual vector<Image<float>> params() = 0;
+
     virtual vector<Image<float>> dparams() = 0;
+
     virtual vector<Func> f_dparams() = 0;
   };
 
   class Criterion : public Layer {
   public:
     virtual void Loss(Func &pred, Func &tgt, Func &dout, Func &loss) = 0;
+
     virtual vector<Image<float>> params() { return vector<Image<float>>(); }
+
     virtual vector<Image<float>> dparams() { return vector<Image<float>>(); }
+
     virtual vector<Func> f_dparams() { return vector<Func>(); }
-  };
-
-  class Softmax : public Criterion {
-  public:
-    Softmax() { /* TODO */ }
-//    static shared_ptr<Softmax> New() {
-//      return shared_ptr<Softmax>(new Softmax());
-//    }
-    virtual void Forward(Func &in, Func &out) = 0;
-    virtual void Backward(Func &dout, Func &din) = 0;
-    void Loss(Func &pred, Func &tgt, Func &dout, Func &loss) {
-      // TODO
-    }
-
   };
 
   class LstmLayer : public Layer {
@@ -64,6 +56,7 @@ namespace halstm {
 
     virtual vector<Image<float>> params();
     virtual vector<Image<float>> dparams();
+    virtual vector<Func> f_params();  // TODO: make super virtual method
     virtual vector<Func> f_dparams();
 
   protected:
@@ -72,27 +65,40 @@ namespace halstm {
     int H_; // num of hidden units;
     int I_; // input dimension
 
+    // (x, y, z) corresponds to Halide (reverse) order
     // parameters
-    Image<float> weight_i_;    // (4*H x I)
-    Image<float> weight_h_;    // (4*H x H)
-    Image<float> bias_;        // (1 x 4*H)
-    Image<float> bias_multiplier_;  // (T x N x 1)
+    Func Wih_;    // (I_, 4*H_)
+    Func Whh_;    // (H_, 4*H_)
+    Func b_;      // (4*H_, 1)
+    Func b_mul_;  // (1, N_, T_)
 
-    // dparams
-    Image<float> dweight_i_;
-    Image<float> dweight_h_;
-    Image<float> dbias_;
-    Func f_dweight_i_;
-    Func f_dweight_h_;
-    Func f_dbias_;
+    // gradients
+    Func dWih_;   // (I_, 4*H_)
+    Func dWhh_;   // (H_, 4*H_)
+    Func db_;     // (4*H_, 1)
 
-    std::vector<Image<float>> top_;
-    std::vector<Image<float>> cell_;
+    Func h0_;     // (H_, N_)
+    Func c0_;     // (H_, N_)
+    vector<Func> h_;  // T_ elements of shape (H_, N_)
+    vector<Func> c_;  // T_ elements of shape (H_, N_)
+  };
 
-    Image<float> c_0_; // previous cell state value         (N x H)
-    Image<float> h_0_; // previous hidden activation value  (N x H)
-    Image<float> c_T_; // next cell state value             (N x H)
-    Image<float> h_T_; // next hidden activation value      (N x H)
+  class Softmax : public Criterion {
+  public:
+    Softmax() { /* TODO */ }
+
+//    static shared_ptr<Softmax> New() {
+//      return shared_ptr<Softmax>(new Softmax());
+//    }
+    virtual void Forward(Func &in, Func &out) = 0;
+
+    virtual void Backward(Func &dout, Func &din) = 0;
+
+    void Loss(Func &pred, Func &tgt, Func &dout, Func &loss) {
+      // TODO
+    }
+
   };
 }
+
 #endif // HALSTM_LAYERS_H
