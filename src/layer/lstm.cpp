@@ -66,7 +66,9 @@ namespace halstm {
       Func h_to_gate("h_to_gate");
       // (H_, N_) dot (4*H_, H_) -> (4H_, N_)
       Dot_2dx2d(false, true, h_prev, Whh_, x, y, H_, h_to_gate);
-      pre_gate_t(x, y) += h_to_gate(x, y);
+      if (t > 0) {
+        pre_gate_t(x, y) += h_to_gate(x, y);
+      }
 
       // go through gates
       Sigmoid_2d(RDom(0, H_, 0, N_), pre_gate_t, pre_gate_t);
@@ -78,17 +80,14 @@ namespace halstm {
       Sigmoid_2d(RDom(2*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
       Tanh_2d(RDom(3*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
 
-      // TODO: optimize intermediate
-      Func forget_gate("forget_gate");
-      forget_gate(x, y) = pre_gate_t(x+H_, y);
-      Func input_gate("input_gate");
-      input_gate(x, y) = pre_gate_t(x, y) * pre_gate_t(x+3*H_, y);
+      // now pre_gate is gate
+      c_[t](x, y) = pre_gate_t(x+H_, y) * c_prev(x, y) +
+          pre_gate_t(x, y) * pre_gate_t(x+3*H_, y);
+      h_[t](x, y) = pre_gate_t(x+2*H_, y) * tanh(c_[t](x, y));
 
-      // set intermediate results
-      c_[t](x, y) = forget_gate(x, y) + input_gate(x, y);
-      h_[t](x, y) = c_[t](x, y);
-      Tanh_2d(RDom(0, H_, 0, N_), h_[t], h_[t]);
-      h_[t](x, y) *= pre_gate_t(x+2*H_, y);
+      // TODO: better schedule
+      c_[t].compute_root();
+      h_[t].compute_root();
     }
 
     // TODO: delete debug

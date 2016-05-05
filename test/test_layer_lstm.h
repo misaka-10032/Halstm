@@ -25,10 +25,10 @@
 using namespace std;
 using caffe::Blob;
 
-#define T_ 2
-#define N_ 3
-#define I_ 4
-#define H_ 5
+const int T_ = 6;
+const int N_ = 8;
+const int I_ = 10;
+const int H_ = 12;
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
@@ -80,13 +80,18 @@ public:
     caffe::LstmLayer<float>* caffeLstmLayer = NewCaffeLstmLayer();
 
     caffeLstmLayer->LayerSetUp(*bottom, *top);
+    caffeLstmLayer->Reshape(*bottom, *top);
     caffeLstmLayer->Forward(*bottom, *top);
+
     TS_TRACE("caffe layer setup!");
+    printf("caffeLstmLayer shape is (%d, %d, %d, %d)\n",
+           caffeLstmLayer->T_, caffeLstmLayer->N_,
+           caffeLstmLayer->I_, caffeLstmLayer->H_);
 
     Image<float> in(I_, N_, T_, "in");
     Image<float> out(H_, N_, T_, "out");
     // setup out bottom
-    blobToImage(*(*bottom)[0], in);
+    BlobToImage(*(*bottom)[0], in);
     TS_TRACE("in setup!");
 
     Var x, y, z;
@@ -99,9 +104,9 @@ public:
     Image<float> Wih(I_, 4*H_, "Wih");
     Image<float> Whh(H_, 4*H_, "Whh");
     Image<float> b(4*H_, 1, "b");
-    blobToImage(*caffeLstmLayer->blobs_[0], Wih);
-    blobToImage(*caffeLstmLayer->blobs_[1], Whh);
-    blobToImage(*caffeLstmLayer->blobs_[2], b);
+    BlobToImage(*caffeLstmLayer->blobs_[0], Wih);
+    BlobToImage(*caffeLstmLayer->blobs_[1], Whh);
+    BlobToImage(*caffeLstmLayer->blobs_[2], b);
 
     lstmLayer.Wih_ = Func(Wih);
     lstmLayer.Whh_ = Func(Whh);
@@ -112,10 +117,10 @@ public:
     lstmLayer.Forward(fin, fout);
     TS_TRACE("forward success!");
     // TODO: delete debug
-    fout.compile_to_lowered_stmt("fout.html", {}, HTML);
+    fout.compile_to_lowered_stmt("forward-fout.html", {}, HTML);
     out = fout.realize(H_, N_, T_);
     TS_TRACE("realize success!");
-    TS_ASSERT(blobEqImage(*(*top)[0], out));
+    TS_ASSERT(BlobEqImage(caffeLstmLayer->top_, out));
 
     DelBlobVec(bottom);
     DelBlobVec(top);
