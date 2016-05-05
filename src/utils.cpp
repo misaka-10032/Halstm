@@ -7,49 +7,26 @@
 
 #include "utils.h"
 
-void blobToImage(Blob<float>& blob, Image<float>& image) {
-  // go reverse order
-  // blob  n, c, h, w
-  // image
-  cout << "blobToImage" << endl;
-  int size = blob.num() * blob.channels() * blob.height() * blob.width();
+#define EPSILON 1e-5
+
+void BlobToImage(Blob<float> &blob, Image<float> &image) {
+  int size = blob.count();
   memcpy(image.data(), blob.cpu_data(), size * sizeof(float));
-//  int idxBlob = 0;
-//  for (int n = 0; n < blob.num(); n++) {
-//    for (int c = 0; c < blob.channels(); c++) {
-//      for (int h = 0; h < blob.height(); h++) {
-//        for (int w = 0; w < blob.width(); w++) {
-//          int idxImg = w;
-//          idxImg = (idxImg * blob.height()) + h;
-//          idxImg = (idxImg * blob.channels()) + c;
-//          idxImg = (idxImg * blob.num()) + n;
-//          printf("(%d, %d, %d, %d) -> %d\n", n, c, h, w, idxImg);
-//          image.data()[idxImg] = blob.cpu_data()[idxBlob++];
-//        }
-//      }
-//    }
-//  }
 }
 
-bool blobEqImage(const Blob<float>& blob, const Image<float>& image) {
-  // go reverse order
-  int idxBlob = 0;
-  for (int n = 0; n < blob.num(); n++) {
-    for (int c = 0; c < blob.channels(); c++) {
-      for (int h = 0; h < blob.height(); h++) {
-        for (int w = 0; w < blob.width(); w++) {
-          int idxImg = w;
-          idxImg = (idxImg * blob.height()) + h;
-          idxImg = (idxImg * blob.channels()) + c;
-          idxImg = (idxImg * blob.num()) + n;
-          if (image.data()[idxImg] != blob.cpu_data()[idxBlob++]) {
-            cout << "mismatch at (n, c, h, w)=(" <<
-            n << ", " << c << ", " << h << ", " << w <<
-            ")" << endl;
-            return false;
-          }
-        }
-      }
+bool BlobEqImage(const Blob<float> &blob, const Image<float> &image) {
+  int size = blob.count();
+  for (int i = 0; i < size; i++) {
+    if (fabs(blob.cpu_data()[i]-image.data()[i]) > EPSILON) {
+      int rest = i;
+      int w = rest % blob.width(); rest /= blob.width();
+      int h = rest % blob.height(); rest /= blob.height();
+      int c = rest % blob.channels(); rest /= blob.channels();
+      int n = rest;
+      printf("mismatch at %d (%d, %d, %d, %d): %.10f vs %.10f\n",
+             i, n, c, h, w,
+             blob.cpu_data()[i], image.data()[i]);
+      return false;
     }
   }
   return true;

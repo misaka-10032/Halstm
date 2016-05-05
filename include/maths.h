@@ -16,36 +16,17 @@ using namespace Halide;
 
 namespace halstm {
 
-  //operate on 2-D matrix
-  Func matrix_dot(bool RA, bool RB, bool transA, bool transB,
-                  Func& A, Func& B, int M, int N, int dim_k);
+  void Dot_2dx2d(bool transA, bool transB, Func &A, Func &B,
+                 Var &x, Var &y, int rsize, Func &C);
 
-//  Func matrix_add_2d(Func& m1, Func& m2);
+  void Dot_3dx2d(bool transA, bool transB, Func &A, Func &B,
+                 Var &x, Var &y, Var &z, int rsize, Func &C);
 
-  Func matrix_add_3d(Func& m1, Func& m2);
+  void Tanh_2d(RDom &&range, Func& input, Func& output);
 
-  // Elementwise matrix multiplication
-  Func matrix_mul(Func& m1, Func& m2);
+  void Sigmoid_2d(RDom &&range, Func &input, Func& output);
 
-  // m0 <- m1 + m2
-  void matrix_add_2d(Func& m0, int m0offx, int m0offy,
-                     Func& m1, int m1offx, int m1offy,
-                     Func& m2, int m2offx, int m2offy,
-                     RDom&& range);
-
-  // m0 <- m1 * m2
-  void matrix_mul_2d(Func& m0, int m0offx, int m0offy,
-                     Func& m1, int m1offx, int m1offy,
-                     Func& m2, int m2offx, int m2offy,
-                     RDom&& range);
-
-  // in <- tanh(in)
-  void Tanh_2d(Halide::Func& input, RDom &&range);
-
-  // in <- sigmoid(in)
-  void Sigmoid_2d(Halide::Func &input, RDom &&range);
-
-
+  void Set_2d(RDom &&range, float v, Func &func);
 }
 
 #endif // HALSTM_MATHS_H

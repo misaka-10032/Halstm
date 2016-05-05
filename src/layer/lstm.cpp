@@ -5,246 +5,127 @@
  * @author misaka-10032 (longqic@andrew.cmu.edu)
  */
 
-#include <string>
 #include "layers.h"
-#include "utils.h"
-
-using namespace Halide;
+#include "maths.h"
 
 namespace halstm {
-  LstmLayer::LstmLayer(int T, int N, int I, int H)  :
+
+  LstmLayer::LstmLayer(int T, int N, int I, int H) :
       T_(T), N_(N), I_(I), H_(H) {
-    // Initialize space to store each hidden unit's result
-    top_ = std::vector<Image<float>>(T_);
-    cell_ = std::vector<Image<float>>(T_);
-    for (int t = 0; t < T_; t++) {
-      top_.push_back(Image<float>(H, N, "top_"+std::to_string(t)));
-      cell_.push_back(Image<float>(H, N, "cell"+std::to_string(t)));
+    Var x, y, z;
+
+    // give names
+    Wih_ = Func("Wih_");
+    Whh_ = Func("Whh_");
+    b_ = Func("b_");
+    b_mul_ = Func("b_mul_");
+
+    dWih_ = Func("dWih_");
+    dWhh_ = Func("dWhh_");
+    db_ = Func("db_");
+
+    h0_ = Func("h0_");
+    c0_ = Func("c0_");
+    for (int t = 0; t < T; t++) {
+      std::string t_str = std::to_string(t);
+      h_.push_back(Func("h_["+t_str+"]"));
+      c_.push_back(Func("c_["+t_str+"]"));
     }
 
-    // name all the images
-    weight_i_ = Image<float>(I_, 4*H_, "weight_i_");
-    weight_h_ = Image<float>(H_, 4*H_, "weight_h_");
-    bias_ = Image<float>(4*H_, 1, "bias_");
-    bias_multiplier_ = Image<float>(1, N_, T_, "bias_multiplier_");
-    c_0_ = Image<float>(H_, N_, "c_0_");
-    h_0_ = Image<float>(H_, N_, "h_0_");
-
-    fillImage(bias_multiplier_, 1.f);
-    fillImage(c_0_, 0.f);
-    fillImage(h_0_, 0.f);
+    // initialize
+    b_mul_(x, y, z) = 1.f;
+    h0_(x, y) = 0.f;
+    c0_(x, y) = 0.f;
   }
 
   /**
-   * Implementation of Forward Function
-   *  in  (T x N x I)
-   *  out (T x N x H)
+   * in:  (I_, N_, T_)
+   * out: (H_, N_, T_)
    */
   void LstmLayer::Forward(Func &in, Func &out) {
-    Var i, j, k;
-    bool clip;    //TODO: figure out what is this
-
-    // load parameters from memory
-    Func bias_multiplier("bias_multiplier");
-    bias_multiplier(i, j, k) = bias_multiplier_(i, j, k);  // (T x N x 1)
-    cout << "set up bias_multiplier!" << endl;
-
-    Func weight_i("weight_i");
-    weight_i(i, j) = weight_i_(i, j);
-    cout << "set up weight_i!" << endl;
-
-    Func weight_h("weight_h");
-    weight_h(i, j) = weight_h_(i, j);
+    // TODO: schedule
+    Var x("x"), y("y"), z("z");
+    Func pre_gate("pre_gate");  // (4*H_, N_, T_)
     Func bias("bias");
-    bias(i, j) = bias_(i, j);
-    cout << "load parameters from memory success!" << endl;
 
-    // compute input to hidden forward propagation
-    Func pre_gate_data("pre_gate_data");
-    pre_gate_data = halstm::matrix_dot(true, false, false, true, in, weight_i, N_, 4 * H_, I_);
-
-
-    Func multiplied_bias;
-    multiplied_bias = halstm::matrix_dot(true, false, false, false, bias_multiplier, bias, N_, 4 * H_, 1);
-    pre_gate_data = halstm::matrix_add_3d(pre_gate_data, multiplied_bias);
-    cout << "compute input to hidden forward propagation" << endl;
-
-//    Image<float> pre_gate_data_image = pre_gate_data.realize(4*H_, N_, T_);
-//    for (int ii = 0; ii < 4*H_*N_*T_; ii++) {
-//      printf("%f ", pre_gate_data_image.data()[ii]);
-//    }
-//    printf("\n");
-
+    // (1, N_, T_) dot (4*H_, 1)  -> (4*H_, N_, T_)
+    Dot_3dx2d(false, false, b_mul_, b_, x, y, z, 1, bias);
+    // (I_, N_, T_) dot (4*H_, I_)  -> (4*H_, N_, T_)
+    Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, pre_gate);
+    pre_gate(x, y, z) += bias(x, y, z);
+    pre_gate.compute_root();
+    out(x, y, z) = (float) 0;
 
     for (int t = 0; t < T_; t++) {
+      // TODO: delete debug
       printf("t=%d\n", t);
-      // Load last hidden unit's result
-      Func h_t_1("h_t_1");
-      Func c_t_1("c_t_1");
+      // TODO: clip if needed
+      Func& h_prev = t == 0 ? h0_ : h_[t-1];
+      Func& c_prev = t == 0 ? c0_ : c_[t-1];
+      Func pre_gate_t("pre_gate_t");
+      pre_gate_t(x, y) = pre_gate(x, y, t);  // TODO: optimize
+      Func h_to_gate("h_to_gate");
+      // (H_, N_) dot (4*H_, H_) -> (4H_, N_)
+      Dot_2dx2d(false, true, h_prev, Whh_, x, y, H_, h_to_gate);
       if (t > 0) {
-        // load last hidden unit's result: cell state and output
-        Func top_data("top_data");
-        top_data(i, j) = (top_[t - 1])(i, j);
-        Func cell_data("cell_data");
-        cell_data(i, j, k) = (cell_[t - 1](i, j));
-        h_t_1(i, j) = top_data(i, j);
-        c_t_1(i, j) = cell_data(i, j);
-      } else if (t == 0) {
-        // initially, initialized with historical or default result
-        Func c_0("c_0_");
-        Func h_0("h_0_");
-        if (clip) {
-          c_0(i, j) = c_T_(i, j);
-          h_0(i, j) = h_T_(i, j);
-        } else {
-          c_0(i, j) = c_0_(i, j);
-          h_0(i, j) = h_0_(i, j);
-        }
-        h_t_1(i, j) = h_0(i, j);
-        c_t_1(i, j) = c_0(i, j);
+        pre_gate_t(x, y) += h_to_gate(x, y);
       }
 
-      // to store final result from this unit
-//      Func h_t("h_t");
-//      Func c_t("c_t");
+      // go through gates
+      Sigmoid_2d(RDom(0, H_, 0, N_), pre_gate_t, pre_gate_t);
+      if (t == 0) {
+        Set_2d(RDom(H_, H_, 0, N_), 0, pre_gate_t);
+      } else {
+        Sigmoid_2d(RDom(H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+      }
+      Sigmoid_2d(RDom(2*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+      Tanh_2d(RDom(3*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
 
-      // to store values generated by 4 gates
-//      Func gate_t[4];
+      // now pre_gate is gate
+      c_[t](x, y) = pre_gate_t(x+H_, y) * c_prev(x, y) +
+          pre_gate_t(x, y) * pre_gate_t(x+3*H_, y);
+      h_[t](x, y) = pre_gate_t(x+2*H_, y) * tanh(c_[t](x, y));
 
-      // input-to-hidden propagation
-      Func pre_gate_t("pre_gate_t");
-      pre_gate_t(i, j) = pre_gate_data(i, j, t);
+      // TODO: better schedule
+      c_[t].compute_root();
+      h_[t].compute_root();
 
-      printf("Before dot\n");
-      // hidden-to-hidden propagation
-      Func h_to_gate("h_to_gate");
-      h_to_gate = halstm::matrix_dot(false, false, false, true, h_t_1, weight_h, N_, 4 * H_, H_);
+      // scheduling
+      c_[t].parallel(y);
+      h_[t].parallel(y);
+      pre_gate_t.parallel(y);
+    }
 
-      // combine hidden input and last layer input
-      pre_gate_t(i, j) += h_to_gate(i, j);
-
-//      Image<float> pre_gate_data_image = pre_gate_t.realize(4*H_, N_);
-//      printf("Pre_gate_data: (%d, %d)\n",
-//             pre_gate_data_image.width(), pre_gate_data_image.height());
-//      for (int ii = 0; ii < 4*H_*N_; ii++) {
-//        printf("%f ", pre_gate_data_image.data()[ii]);
-//      }
-//      printf("\n");
-
-
-
-      //apply non-linear gates
-//      RDom gates_range(0, H_, H_, 2 * H_, 2 * H_, 3 * H_, 3 * H_, 4 * H_);
-//      Var i0("i0"), i1("i1");
-//      Func pre_gate_t_3d("temp_pregate_t");
-//      pre_gate_t_3d(i, j) = pre_gate_t(i, j);
-//      pre_gate_t_3d.split(i, i0, i1, H_);
-
-//      Func pre_gate_t0("pre_gate_t0");
-////      pre_gate_t0(i, j) = pre_gate_t_3d(i, 0, j);
-////      gate_t[0](i, j) = (halstm::Sigmoid_2d(pre_gate_t0))(i, j);
-//      RDom r0(0, H_);
-//      pre_gate_t0(r0, j) = j;
-//      pre_gate_t0(r0, j) = pre_gate_t(r0, j);
-//      gate_t[0](i, j) = (halstm::Sigmoid_(pre_gate_t0))(i, j);
-//
-//      Func pre_gate_t1("pre_gate_t1");
-//      pre_gate_t1(i, j) = pre_gate_t_3d(i, 1, j);
-//      gate_t[1](i, j) = (halstm::Sigmoid_(pre_gate_t1, RDom(0, N_, 0, H_))(i, j);
-//
-//      Func pre_gate_t2("pre_gate_t2");
-//      pre_gate_t2(i, j) = pre_gate_t_3d(i, 2, j);
-//      gate_t[2](i, j) = (halstm::Sigmoid_(pre_gate_t2))(i, j);
-//
-//      Func pre_gate_t3("pre_gate_t3");
-//      pre_gate_t3(i, j) = pre_gate_t_3d(i, 3, j);
-//      gate_t[3](i, j) = (halstm::Tanh_(pre_gate_t3))(i, j);
-
-      //pre_gate_t N x 4*H
-
-      printf("before gates\n");
-
-      Sigmoid_2d(pre_gate_t, RDom(0, H_, 0, N_));
-      Sigmoid_2d(pre_gate_t, RDom(H_, H_, 0, N_));
-      Sigmoid_2d(pre_gate_t, RDom(2*H_, H_, 0, N_));
-      Tanh_2d(pre_gate_t, RDom(3*H_, H_, 0, N_));
-
-
-      RDom r(0, H_, 0, N_);
-      // forget gate
-      pre_gate_t(r.x+H_, r.y) *= c_t_1(r.x, r.y);
-      // input gate
-      pre_gate_t(r.x, r.y) *= pre_gate_t(r.x+3*H_, r.y);
-      // context
-      pre_gate_t(r.x+H_, r.y) +=  pre_gate_t(r.x, r.y);
-      // filter (context)
-      Tanh_2d(pre_gate_t, RDom(H_, H_, 0, N_));
-      // hidden
-      pre_gate_t(r.x, r.y) = pre_gate_t(r.x+H_, r.y) * pre_gate_t(r.x+2*H_, r.y);
-
-      printf("after gates\n");
-
-      // for now
-      // h_t in pre_gate_t(0, H_, 0, N_)
-      // c_t in pre_gate_t(H_, 2*H_, 0, N_)
-
-
-//      Func forget_gate("forget_gate");
-//      forget_gate(i, j) = halstm::matrix_mul(gate_t[1], c_t_1);
-//      Func input_gate("input_gate");
-//      input_gate(i, j) = halstm::matrix_mul(gate_t[0], gate_t[3]);
-//      c_t(i, j) = halstm::matrix_add_2d(forget_gate, input_gate);
-//      Func filter_gate("filter_gate");
-//      filter_gate(i, j) = halstm::Tanh_(c_t);
-//      h_t(i, j) = halstm::matrix_mul(filter_gate, gate_t[2]);   //N_, H_
-
-      // TODO: realize sub func
-
-      Image<float> t_output(4 * H_, N_);
-      //t_output.set_min(0, 0);
-      t_output = pre_gate_t.realize(4*H_, N_);
-
-      printf("t_output has dim=%d\n", t_output.dimensions());
-
-      Func tmp("tmp");
-      tmp(i, j) = t_output(i, j);
-
-      cell_[t].set_min(0, 0);
-      tmp.realize(top_[t]);
-      top_[t].set_min(H_, 0);
-      tmp.realize(cell_[t]);
-
-//        copy_sub_image(top_[t], t_output, H_, 2 * H_, 0, N_);
-//        copy_sub_image(cell_[t], t_output, 0, H_, 0, N_);
-//
-//        out(i, j, t) = top_[t](i, j);
-//
-//        top_[t].set_min(H_, 0);
-//        pre_gate_t.realize(top_[t]);
-//        cell_[t].set_min(0, 0);
-//        pre_gate_t.realize(cell_[t]);
-
-
-//      //store this hidden unit's output
-//      h_t.realize(top_[t]);
-//      c_t.realize(cell_[t]);
+    // TODO: delete debug
+    //out.trace_stores();
+    // update outputs
+    for (int t = 0; t < T_; t++) {
+      out(x, y, t) = h_[t](x, y);
     }
   }
 
-  void LstmLayer::Backward(Func &out, Func &in) {
-    // TODO:
+  void LstmLayer::Backward(Func &dout, Func &din) {
+    Var x("x"), y("y"), z("z");
+
   }
 
   vector<Image<float>> LstmLayer::params() {
-    return {weight_i_, weight_h_, bias_};
+    // TODO
+    return vector<Image<float>>();
   }
 
   vector<Image<float>> LstmLayer::dparams() {
-    return {dweight_i_, dweight_h_, dbias_};
+    // TODO
+    return vector<Image<float>>();
+  }
+
+  vector<Func> LstmLayer::f_params() {
+    // TODO
+    return vector<Func>();
   }
 
   vector<Func> LstmLayer::f_dparams() {
-    return {f_dweight_i_, f_dweight_h_, f_dbias_};
+    // TODO
+    return vector<Func>();
   }
-
 }
