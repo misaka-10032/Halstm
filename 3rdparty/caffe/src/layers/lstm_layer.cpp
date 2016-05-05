@@ -124,6 +124,7 @@ void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* weight_i = this->blobs_[0]->cpu_data();
   const Dtype* weight_h = this->blobs_[1]->cpu_data();
   const Dtype* bias = this->blobs_[2]->cpu_data();
+
   Dtype* pre_gate_data = pre_gate_.mutable_cpu_data();
   Dtype* gate_data = gate_.mutable_cpu_data();
   Dtype* cell_data = cell_.mutable_cpu_data();
@@ -139,13 +140,13 @@ void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     caffe_set(h_0_.count(), Dtype(0.), h_0_.mutable_cpu_data());
   }
 
-  // Compute input to hidden forward propagation
+  // Compute input to hidden Forward propagation
   caffe_cpu_gemm(CblasNoTrans, CblasTrans, T_*N_, 4*H_, I_, Dtype(1.),
       bottom_data, weight_i, Dtype(0.), pre_gate_data);
   caffe_cpu_gemm(CblasNoTrans, CblasNoTrans, T_*N_, 4*H_, 1, Dtype(1.),
       bias_multiplier_.cpu_data(), bias, Dtype(1.), pre_gate_data);
 
-  // Compute recurrent forward propagation
+  // Compute recurrent Forward propagation
   for (int t = 0; t < T_; ++t) {
     Dtype* h_t = top_data + top_.offset(t);
     Dtype* c_t = cell_data + cell_.offset(t);
