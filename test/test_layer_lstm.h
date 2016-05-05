@@ -102,9 +102,6 @@ public:
     blobToImage(*caffeLstmLayer->blobs_[0], Wih);
     blobToImage(*caffeLstmLayer->blobs_[1], Whh);
     blobToImage(*caffeLstmLayer->blobs_[2], b);
-//    fillImage(Wih, 1.f);
-//    fillImage(Whh, 1.f);
-//    fillImage(b, 1.f);
 
     lstmLayer.Wih_ = Func(Wih);
     lstmLayer.Whh_ = Func(Whh);

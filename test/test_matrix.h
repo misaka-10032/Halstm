@@ -37,7 +37,7 @@ public:
     Func fA = Func(A);
     Func fB = Func(B);
     Func fC("fC");
-    dot_2dx2d(false, false, fA, fB, x, y, 2, fC);
+    Dot_2dx2d(false, false, fA, fB, x, y, 2, fC);
     Image<float> C = fC.realize(4, 4);
 
     for (int i = 0; i < 16; i++) {
@@ -63,7 +63,7 @@ public:
     Func fA = Func(A);
     Func fB = Func(B);
     Func fC("fC");
-    dot_2dx2d(false, true, fA, fB, x, y, 2, fC);
+    Dot_2dx2d(false, true, fA, fB, x, y, 2, fC);
     Image<float> C = fC.realize(4, 4);
 
     for (int i = 0; i < 16; i++) {
@@ -89,7 +89,7 @@ public:
     Func fA = Func(A);
     Func fB = Func(B);
     Func fC("fC");
-    dot_2dx2d(true, false, fA, fB, x, y, 2, fC);
+    Dot_2dx2d(true, false, fA, fB, x, y, 2, fC);
     Image<float> C = fC.realize(4, 4);
 
     for (int i = 0; i < 16; i++) {
@@ -115,7 +115,7 @@ public:
     Func fA = Func(A);
     Func fB = Func(B);
     Func fC("fC");
-    dot_2dx2d(true, true, fA, fB, x, y, 2, fC);
+    Dot_2dx2d(true, true, fA, fB, x, y, 2, fC);
 
     Image<float> C = fC.realize(4, 4);
     for (int i = 0; i < 16; i++) {
@@ -141,7 +141,7 @@ public:
     Func fA = Func(A);
     Func fB = Func(B);
     Func fC("fC");
-    dot_3dx2d(false, false, fA, fB, x, y, z, 2, fC);
+    Dot_3dx2d(false, false, fA, fB, x, y, z, 2, fC);
     Image<float> C = fC.realize(4, 2, 2);
 
     for (int ii = 0; ii < 16; ii++) {
@@ -167,7 +167,7 @@ public:
     Func fA = Func(A);
     Func fB = Func(B);
     Func fC("fC");
-    dot_3dx2d(false, true, fA, fB, x, y, z, 2, fC);
+    Dot_3dx2d(false, true, fA, fB, x, y, z, 2, fC);
     Image<float> C = fC.realize(4, 2, 2);
 
     for (int ii = 0; ii < 16; ii++) {

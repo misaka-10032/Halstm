@@ -48,11 +48,9 @@ namespace halstm {
     Func pre_gate("pre_gate");  // (4*H_, N_, T_)
     Func bias("bias");
     // (1, N_, T_) dot (4*H_, 1)  -> (4*H_, N_, T_)
-    dot_3dx2d(false, false, b_mul_, b_, x, y, z, 1, bias);
+    Dot_3dx2d(false, false, b_mul_, b_, x, y, z, 1, bias);
     // (I_, N_, T_) dot (4*H_, I_)  -> (4*H_, N_, T_)
-    dot_3dx2d(false, true, in, Wih_, x, y, z, I_, pre_gate);
-    printf("pre_gate dim: %d\n", pre_gate.dimensions());
-    printf("bias dim: %d\n", bias.dimensions());
+    Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, pre_gate);
     pre_gate(x, y, z) += bias(x, y, z);
     pre_gate.compute_root();
     out(x, y, z) = (float) 0;
@@ -67,14 +65,18 @@ namespace halstm {
       pre_gate_t(x, y) = pre_gate(x, y, t);  // TODO: optimize
       Func h_to_gate("h_to_gate");
       // (H_, N_) dot (4*H_, H_) -> (4H_, N_)
-      dot_2dx2d(false, true, h_prev, Whh_, x, y, H_, h_to_gate);
+      Dot_2dx2d(false, true, h_prev, Whh_, x, y, H_, h_to_gate);
       pre_gate_t(x, y) += h_to_gate(x, y);
 
       // go through gates
-      Sigmoid_2d(pre_gate_t, RDom(0, H_, 0, N_));
-      Sigmoid_2d(pre_gate_t, RDom(H_, H_, 0, N_));
-      Sigmoid_2d(pre_gate_t, RDom(2*H_, H_, 0, N_));
-      Tanh_2d(pre_gate_t, RDom(3*H_, H_, 0, N_));
+      Sigmoid_2d(RDom(0, H_, 0, N_), pre_gate_t, pre_gate_t);
+      if (t == 0) {
+        Set_2d(RDom(H_, H_, 0, N_), 0, pre_gate_t);
+      } else {
+        Sigmoid_2d(RDom(H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+      }
+      Sigmoid_2d(RDom(2*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+      Tanh_2d(RDom(3*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
 
       // TODO: optimize intermediate
       Func forget_gate("forget_gate");
@@ -85,7 +87,7 @@ namespace halstm {
       // set intermediate results
       c_[t](x, y) = forget_gate(x, y) + input_gate(x, y);
       h_[t](x, y) = c_[t](x, y);
-      Tanh_2d(h_[t], RDom(0, H_, 0, N_));
+      Tanh_2d(RDom(0, H_, 0, N_), h_[t], h_[t]);
       h_[t](x, y) *= pre_gate_t(x+2*H_, y);
     }
 
