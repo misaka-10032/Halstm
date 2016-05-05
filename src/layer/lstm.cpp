@@ -42,7 +42,7 @@ namespace halstm {
    * in:  (I_, N_, T_)
    * out: (H_, N_, T_)
    */
-  void LstmLayer::Forward(Func &in, Func &out) {
+  void LstmLayer::Forward(const Func& in, Func &out) {
     // TODO: schedule
     Var x("x"), y("y"), z("z");
     Func pre_gate("pre_gate");  // (4*H_, N_, T_)
@@ -98,7 +98,8 @@ namespace halstm {
     }
   }
 
-  void LstmLayer::Backward(Func &dout, Func &din) {
+  void LstmLayer::Backward(const Func& out, const Func& dout,
+                           const Func& in, Func& din) {
     // TODO
   }
 

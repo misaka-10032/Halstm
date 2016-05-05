@@ -22,9 +22,10 @@ namespace halstm {
 
   class Layer {
   public:
-    virtual void Forward(Func &in, Func &out) = 0;
+    virtual void Forward(const Func& in, Func& out) = 0;
 
-    virtual void Backward(Func &dout, Func &din) = 0;
+    virtual void Backward(const Func& out, const Func& dout,
+                          const Func& in, Func &din) = 0;
 
     virtual vector<Image<float>> params() = 0;
 
@@ -51,8 +52,9 @@ namespace halstm {
       return shared_ptr<LstmLayer>(new LstmLayer(T, N, I, H));
     }
 
-    virtual void Forward(Func &in, Func &out);
-    virtual void Backward(Func &dout, Func &din);
+    virtual void Forward(const Func& in, Func& out);
+    virtual void Backward(const Func& out, const Func &dout,
+                          const Func& in, Func &din);
 
     virtual vector<Image<float>> params();
     virtual vector<Image<float>> dparams();
@@ -90,9 +92,10 @@ namespace halstm {
 //    static shared_ptr<Softmax> New() {
 //      return shared_ptr<Softmax>(new Softmax());
 //    }
-    virtual void Forward(Func &in, Func &out) = 0;
+    virtual void Forward(const Func& in, Func &out) = 0;
 
-    virtual void Backward(Func &dout, Func &din) = 0;
+    virtual void Backward(const Func& out, const Func &dout,
+                          const Func& in, Func &din) = 0;
 
     void Loss(Func &pred, Func &tgt, Func &dout, Func &loss) {
       // TODO

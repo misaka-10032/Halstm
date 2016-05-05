@@ -9,8 +9,8 @@
 
 namespace halstm {
 
-  void Dot_2dx2d(bool transA, bool transB, Func &A, Func &B,
-                 Var &x, Var &y, int rsize, Func &C) {
+  void Dot_2dx2d(bool transA, bool transB, const Func& A, const Func& B,
+                 const Var& x, const Var& y, int rsize, Func &C) {
     // TODO: schedule
     Var r("r");
     Func A_("A_"), B_("B_"), C_("C_");
@@ -21,8 +21,8 @@ namespace halstm {
     C(x, y) += C_(RDom(0, rsize), x, y);
   }
 
-  void Dot_3dx2d(bool transA, bool transB, Func &A, Func &B,
-                 Var &x, Var &y, Var &z, int rsize, Func &C) {
+  void Dot_3dx2d(bool transA, bool transB, const Func& A, const Func& B,
+                 const Var& x, const Var& y, const Var& z, int rsize, Func &C) {
     // TODO: schedule
     Var r("r");
     Func A_("A_"), B_("B_"), C_("C_");
@@ -37,7 +37,7 @@ namespace halstm {
    * Get a instance of tanh activation function
    * - input: the last stage Halide Func in pipeline
    */
-  void Tanh_2d(RDom &&range, Func& input, Func& output) {
+  void Tanh_2d(RDom&& range, const Func& input, Func& output) {
     output(range.x, range.y) = Halide::tanh(input(range.x, range.y));
   }
 
@@ -45,12 +45,12 @@ namespace halstm {
    * Get a instance of sigmoid activation function
    * - input: the last stage Halide Func in pipeline
    */
-  void Sigmoid_2d(RDom &&range, Func &input, Func &output) {
+  void Sigmoid_2d(RDom&& range, const Func& input, Func& output) {
     output(range.x, range.y) =
         1.0f / (1.0f + Halide::fast_exp(-input(range.x, range.y)));
   }
 
-  void Set_2d(RDom &&range, float v, Func &func) {
+  void Set_2d(RDom&& range, float v, Func &func) {
     func(range.x, range.y) = v;
   }
 }
