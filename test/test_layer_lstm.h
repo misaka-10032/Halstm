@@ -26,10 +26,10 @@
 using namespace std;
 using caffe::Blob;
 
-const int T_ = 6;
-const int N_ = 8;
-const int I_ = 10;
-const int H_ = 12;
+const int T_ = 20;
+const int N_ = 64;
+const int I_ = 100;
+const int H_ = 200;
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
@@ -121,7 +121,6 @@ public:
     Func fout("fout");
     lstmLayer.Forward(fin, fout);
     TS_TRACE("forward success!");
-    // TODO: delete debug
     fout.compile_to_lowered_stmt("forward-fout.html", {}, HTML);
     double halstm_start_time = CycleTimer::currentSeconds();
     out = fout.realize(H_, N_, T_);

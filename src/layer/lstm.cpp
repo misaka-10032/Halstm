@@ -7,6 +7,9 @@
 
 #include "layers.h"
 #include "maths.h"
+#include "CycleTimer.h"
+
+#define debug 1
 
 namespace halstm {
 
@@ -44,6 +47,9 @@ namespace halstm {
    */
   void LstmLayer::Forward(Func &in, Func &out) {
     // TODO: schedule
+#ifdef debug
+  double start_time = CycleTimer::currentSeconds();
+#endif
     Var x("x"), y("y"), z("z");
     Func pre_gate("pre_gate");  // (4*H_, N_, T_)
     Func bias("bias");
@@ -53,13 +59,14 @@ namespace halstm {
     // (I_, N_, T_) dot (4*H_, I_)  -> (4*H_, N_, T_)
     Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, pre_gate);
     pre_gate(x, y, z) += bias(x, y, z);
-    pre_gate.compute_root();
     out(x, y, z) = (float) 0;
 
+    // scheduling for pre-loop
+    bias.compute_at(pre_gate, x);
+    pre_gate.compute_root();
+    pre_gate.parallel(y);
+
     for (int t = 0; t < T_; t++) {
-      // TODO: delete debug
-      printf("t=%d\n", t);
-      // TODO: clip if needed
       Func& h_prev = t == 0 ? h0_ : h_[t-1];
       Func& c_prev = t == 0 ? c0_ : c_[t-1];
       Func pre_gate_t("pre_gate_t");
@@ -71,29 +78,49 @@ namespace halstm {
         pre_gate_t(x, y) += h_to_gate(x, y);
       }
 
-      // go through gates
-      Sigmoid_2d(RDom(0, H_, 0, N_), pre_gate_t, pre_gate_t);
+      pre_gate_t.compute_root();
+      pre_gate_t.parallel(y);
+
+      // go through gates (H_, N_)
+      Func gate[4];
+      gate[0](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x, y)));
       if (t == 0) {
-        Set_2d(RDom(H_, H_, 0, N_), 0, pre_gate_t);
-      } else {
-        Sigmoid_2d(RDom(H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+        gate[1](x, y) = 0.0f;
+      }else{
+        gate[1](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x+H_, y)));
       }
-      Sigmoid_2d(RDom(2*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
-      Tanh_2d(RDom(3*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+      gate[2](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x+2*H_, y)));
+      gate[3](x, y) = tanh(pre_gate_t(x+3*H_, y));
 
-      // now pre_gate is gate
-      c_[t](x, y) = pre_gate_t(x+H_, y) * c_prev(x, y) +
-          pre_gate_t(x, y) * pre_gate_t(x+3*H_, y);
-      h_[t](x, y) = pre_gate_t(x+2*H_, y) * tanh(c_[t](x, y));
 
-      // TODO: better schedule
+      c_[t](x, y) = gate[1](x, y) * c_prev(x, y) +
+                    gate[0](x, y) * gate[3](x, y);
+      h_[t](x, y) = gate[2](x, y) * tanh(c_[t](x, y));
+
+      // Scheduling for t in T
+      Var xin, xout, yin, yout;
+      Var gate_tile_idx;
+
+      gate[0].compute_at(c_[t], x);
+      gate[0].parallel(y);
+      gate[1].compute_at(c_[t], x);
+      gate[1].parallel(y);
+      gate[2].compute_at(h_[t], x);
+      gate[2].parallel(y);
+      gate[3].compute_at(c_[t], x);
+      gate[3].parallel(y);
+
+      //TODO: how to pipelining through T?
+//      if (t < T_-1){
+//        c_[t].compute_at(c_[t+1], y);
+//        h_[t].compute_at(h_[t+1], y);
+//      }else{
       c_[t].compute_root();
       h_[t].compute_root();
+//      }
 
-      // scheduling
       c_[t].parallel(y);
       h_[t].parallel(y);
-      pre_gate_t.parallel(y);
     }
 
     // TODO: delete debug
@@ -106,7 +133,6 @@ namespace halstm {
 
   void LstmLayer::Backward(Func &dout, Func &din) {
     Var x("x"), y("y"), z("z");
-
   }
 
   vector<Image<float>> LstmLayer::params() {

@@ -6,6 +6,9 @@
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/vision_layers.hpp"
+#include "CycleTimer.h"
+
+#define debug 1
 
 namespace caffe {
 
@@ -76,6 +79,7 @@ void LstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   // Figure out the dimensions
   T_ = bottom[0]->num() / N_; // length of sequence
+
   CHECK_EQ(bottom[0]->num() % N_, 0) << "Input size "
     "should be multiple of batch size";
   CHECK_EQ(bottom[0]->count() / T_ / N_, I_) << "Input size "
@@ -113,6 +117,10 @@ void LstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+#ifdef debug
+  double start_time = CycleTimer::currentSeconds();
+#endif
+
   CHECK_EQ(top[0]->cpu_data(), top_.cpu_data());
   Dtype* top_data = top_.mutable_cpu_data();
   const Dtype* bottom_data = bottom[0]->cpu_data();
@@ -145,6 +153,11 @@ void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       bottom_data, weight_i, Dtype(0.), pre_gate_data);
   caffe_cpu_gemm(CblasNoTrans, CblasNoTrans, T_*N_, 4*H_, 1, Dtype(1.),
       bias_multiplier_.cpu_data(), bias, Dtype(1.), pre_gate_data);
+
+#ifdef debug
+  double before_T_time = CycleTimer::currentSeconds();
+  printf("\n[Caffe LSTM] Before Entering T Loop Time : %e\n", before_T_time - start_time);
+#endif
 
   // Compute recurrent Forward propagation
   for (int t = 0; t < T_; ++t) {
@@ -185,6 +198,10 @@ void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       gate_t += 4*H_;
       h_to_gate_t += 4*H_;
     }
+#ifdef debug
+    double T_time = CycleTimer::currentSeconds();
+    printf("[Caffe LSTM] T = %d, Time = %e\n", t, T_time-start_time);
+#endif
   }
   // Preserve cell state and output value for truncated BPTT
   caffe_copy(N_*H_, cell_data + cell_.offset(T_-1), c_T_.mutable_cpu_data());
