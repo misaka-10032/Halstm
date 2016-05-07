@@ -11,6 +11,7 @@
 #include <vector>
 #include <cxxtest/TestSuite.h>
 #include "caffe/proto/caffe.pb.h"
+#include "benchmark.h"
 
 // trick to use protected field
 #define protected public
@@ -28,8 +29,8 @@ using caffe::Blob;
 
 const int T_ = 20;
 const int N_ = 64;
-const int I_ = 100;
-const int H_ = 200;
+const int I_ = 128;
+const int H_ = 256;
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
@@ -122,10 +123,11 @@ public:
     lstmLayer.Forward(fin, fout);
     TS_TRACE("forward success!");
     fout.compile_to_lowered_stmt("forward-fout.html", {}, HTML);
-    double halstm_start_time = CycleTimer::currentSeconds();
-    out = fout.realize(H_, N_, T_);
-    double halstm_end_time = CycleTimer::currentSeconds();
-    double halstm_time = halstm_end_time - halstm_start_time;
+//    double halstm_start_time = CycleTimer::currentSeconds();
+    double halstm_time = benchmark(3, 1, [&]() {out = fout.realize(H_, N_, T_);});
+//    out = fout.realize(H_, N_, T_);
+//    double halstm_end_time = CycleTimer::currentSeconds();
+//    double halstm_time = halstm_end_time - halstm_start_time;
 
     TS_TRACE("realize success!");
     TS_ASSERT(BlobEqImage(caffeLstmLayer->top_, out));

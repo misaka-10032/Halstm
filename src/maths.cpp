@@ -27,19 +27,6 @@ namespace halstm {
     Var ti[3], tj[3];
     int vec = 1;
     const int s = vec * 2;
-
-//    C.tile(x, y, ti[1], tj[1], x, y, 2*s, 2*s);
-//    C.tile(x, y, ii, ji, s, 4).tile(x, y, ti[0], tj[0], x, y, 1, s/4);
-//    C.fuse(tj[1], ti[1], t).parallel(t);
-//    C.rename(tj[0], t);
-//    A_.compute_root()
-//            .split(y, jo, ji, s)
-//            .unroll(x).vectorize(ji).parallel(jo, 4);
-//    B_.compute_at(C, t)
-//            .tile(x, y, ii, ji, 8, 8)
-//            .vectorize(ii).unroll(ji);
-//    C.unroll(j).vectorize(x)
-//            .update().vectorize(x);
   }
 
   void Dot_3dx2d(bool transA, bool transB, Func &A, Func &B,
@@ -53,8 +40,8 @@ namespace halstm {
     C_(r, x, y, z) = B_(x, r) * A_(r, y, z);
     C(x, y, z) += C_(RDom(0, rsize), x, y, z);
 
-    C_.compute_at(C, x);
-    C_.parallel(z);
+    // scheduling
+    C.compute_root();
     C.parallel(z);
   }
 
