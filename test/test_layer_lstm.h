@@ -11,6 +11,7 @@
 #include <vector>
 #include <cxxtest/TestSuite.h>
 #include "caffe/proto/caffe.pb.h"
+#include "benchmark.h"
 
 // trick to use protected field
 #define protected public
@@ -21,14 +22,15 @@
 #include "caffe/blob.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "utils.h"
+#include "CycleTimer.h"
 
 using namespace std;
 using caffe::Blob;
 
-const int T_ = 6;
-const int N_ = 8;
-const int I_ = 10;
-const int H_ = 12;
+const int T_ = 20;
+const int N_ = 64;
+const int I_ = 128;
+const int H_ = 256;
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
@@ -81,7 +83,11 @@ public:
 
     caffeLstmLayer->LayerSetUp(*bottom, *top);
     caffeLstmLayer->Reshape(*bottom, *top);
+
+    double caffe_start_time = CycleTimer::currentSeconds();
     caffeLstmLayer->Forward(*bottom, *top);
+    double caffe_end_time = CycleTimer::currentSeconds();
+    double caffe_time = caffe_end_time-caffe_start_time;
 
     TS_TRACE("caffe layer setup!");
     printf("caffeLstmLayer shape is (%d, %d, %d, %d)\n",
@@ -116,11 +122,18 @@ public:
     Func fout("fout");
     lstmLayer.Forward(fin, fout);
     TS_TRACE("forward success!");
-    // TODO: delete debug
     fout.compile_to_lowered_stmt("forward-fout.html", {}, HTML);
-    out = fout.realize(H_, N_, T_);
+//    double halstm_start_time = CycleTimer::currentSeconds();
+    double halstm_time = benchmark(3, 1, [&]() {out = fout.realize(H_, N_, T_);});
+//    out = fout.realize(H_, N_, T_);
+//    double halstm_end_time = CycleTimer::currentSeconds();
+//    double halstm_time = halstm_end_time - halstm_start_time;
+
     TS_TRACE("realize success!");
     TS_ASSERT(BlobEqImage(caffeLstmLayer->top_, out));
+
+    cout << "[Caffe LSTM Time] " << caffe_time << endl;
+    cout << "[HaLSTM Time] " << halstm_time << endl;
 
     DelBlobVec(bottom);
     DelBlobVec(top);

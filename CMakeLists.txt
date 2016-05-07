@@ -44,6 +44,12 @@ if(CXXTEST_FOUND)
             ${PROJECT_SOURCE_DIR}/test/test_matrix.h
             ${SRC} ${CAFFE_SRC})
     target_link_libraries(test_matrix ${LIBS})
+
+    # test_matrix_dot_perf
+    CXXTEST_ADD_TEST(test_dot_perf test_matrix_dot_perf.cpp
+            ${PROJECT_SOURCE_DIR}/test/test_matrix_dot_perf.h
+            ${SRC} ${CAFFE_SRC})
+    target_link_libraries(test_dot_perf ${LIBS})
 endif()
 
 # binaries

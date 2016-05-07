@@ -7,6 +7,9 @@
 
 #include "layers.h"
 #include "maths.h"
+#include "CycleTimer.h"
+
+#define debug 1
 
 namespace halstm {
 
@@ -44,23 +47,29 @@ namespace halstm {
    */
   void LstmLayer::Forward(const Func& in, Func &out) {
     // TODO: schedule
+#ifdef debug
+    double start_time = CycleTimer::currentSeconds();
+#endif
     Var x("x"), y("y"), z("z");
     Func pre_gate("pre_gate");  // (4*H_, N_, T_)
     Func bias("bias");
+
     // (1, N_, T_) dot (4*H_, 1)  -> (4*H_, N_, T_)
     Dot_3dx2d(false, false, b_mul_, b_, x, y, z, 1, bias);
+
     // (I_, N_, T_) dot (4*H_, I_)  -> (4*H_, N_, T_)
     Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, pre_gate);
     pre_gate(x, y, z) += bias(x, y, z);
-    pre_gate.compute_root();
     out(x, y, z) = (float) 0;
 
+    // scheduling for pre-loop
+    Var par, xin, xout, yin, yout;
+    pre_gate.compute_root();
+    pre_gate.parallel(y).vectorize(x, 4);
+
     for (int t = 0; t < T_; t++) {
-      // TODO: delete debug
-      printf("t=%d\n", t);
-      // TODO: clip if needed
-      Func& h_prev = t == 0 ? h0_ : h_[t-1];
-      Func& c_prev = t == 0 ? c0_ : c_[t-1];
+      Func &h_prev = t == 0 ? h0_ : h_[t - 1];
+      Func &c_prev = t == 0 ? c0_ : c_[t - 1];
       Func pre_gate_t("pre_gate_t");
       pre_gate_t(x, y) = pre_gate(x, y, t);  // TODO: optimize
       Func h_to_gate("h_to_gate");
@@ -70,29 +79,91 @@ namespace halstm {
         pre_gate_t(x, y) += h_to_gate(x, y);
       }
 
-      // go through gates
-      Sigmoid_2d(RDom(0, H_, 0, N_), pre_gate_t, pre_gate_t);
+      pre_gate_t.compute_root();
+      pre_gate_t.parallel(y);
+
+      // go through gates (H_, N_)
+      Func gate[4];
+      gate[0](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x, y)));
       if (t == 0) {
-        Set_2d(RDom(H_, H_, 0, N_), 0, pre_gate_t);
+        gate[1](x, y) = 0.0f;
       } else {
-        Sigmoid_2d(RDom(H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+        gate[1](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x + H_, y)));
       }
-      Sigmoid_2d(RDom(2*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
-      Tanh_2d(RDom(3*H_, H_, 0, N_), pre_gate_t, pre_gate_t);
+      gate[2](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x + 2 * H_, y)));
+      gate[3](x, y) = tanh(pre_gate_t(x + 3 * H_, y));
 
-      // now pre_gate is gate
-      c_[t](x, y) = pre_gate_t(x+H_, y) * c_prev(x, y) +
-          pre_gate_t(x, y) * pre_gate_t(x+3*H_, y);
-      h_[t](x, y) = pre_gate_t(x+2*H_, y) * tanh(c_[t](x, y));
 
-      // TODO: better schedule
+      c_[t](x, y) = gate[1](x, y) * c_prev(x, y) +
+                    gate[0](x, y) * gate[3](x, y);
+      h_[t](x, y) = gate[2](x, y) * tanh(c_[t](x, y));
+
+
+      // Scheduling for single iteration
+      Var x_outer, y_outer, x_inner, y_inner;
+      Var x_inner_outer, y_inner_outer, x_vectors, y_pairs;
+      Var fuse_idx;
+      int x_tile = 16, y_tile = 8;
+
+      // gates' staging: inline vs. compute_root
+
+      gate[0].compute_at(c_[t], x);
+      gate[1].compute_at(c_[t], x);
+      gate[2].compute_at(h_[t], x);
+      gate[3].compute_at(c_[t], x);
+
+//      gate[0].compute_root();
+//      gate[1].compute_root();
+//      gate[2].compute_root();
+//      gate[3].compute_root();
+
+      gate[0].vectorize(x, 4);
+      gate[1].vectorize(x, 4);
+      gate[2].vectorize(x, 4);
+      gate[3].vectorize(x, 4);
+
+      gate[0].parallel(y);
+      gate[1].parallel(y);
+      gate[2].parallel(y);
+      gate[3].parallel(y);
+
+
+      // gates's optimization: parallel or tile:
+
+//      gate[0].tile(x, y, x_outer, y_outer, x_inner, y_inner, x_tile, y_tile)
+//              .fuse(x_outer, y_outer, gate_fuse_idx)
+//              .parallel(gate_fuse_idx);
+//      gate[1].tile(x, y, x_outer, y_outer, x_inner, y_inner, x_tile, y_tile)
+//              .fuse(x_outer, y_outer, gate_fuse_idx)
+//              .parallel(gate_fuse_idx);
+//      gate[2].tile(x, y, x_outer, y_outer, x_inner, y_inner, x_tile, y_tile)
+//              .fuse(x_outer, y_outer, gate_fuse_idx)
+//              .parallel(gate_fuse_idx);
+//      gate[3].tile(x, y, x_outer, y_outer, x_inner, y_inner, x_tile, y_tile)
+//              .fuse(x_outer, y_outer, gate_fuse_idx)
+//              .parallel(gate_fuse_idx);
+
+
+      //TODO: how to pipelining through T?
+
       c_[t].compute_root();
       h_[t].compute_root();
+
+      c_[t].parallel(y);
+      h_[t].parallel(y);
+
+//      c_[t].tile(x, y, x_outer, y_outer, x_inner, y_inner, x_tile, y_tile)
+//              .fuse(x_outer, y_outer, fuse_idx)
+//              .parallel(fuse_idx);
+//      h_[t].tile(x, y, x_outer, y_outer, x_inner, y_inner, x_tile, y_tile)
+//              .fuse(x_outer, y_outer, fuse_idx)
+//              .parallel(fuse_idx);
+//      c_[t].tile(x_inner, y_inner, x_inner_outer, y_inner_outer, x_vectors, y_pairs, 4, 4)
+//              .vectorize(x_vectors).unroll(y_pairs);
+//      h_[t].tile(x_inner, y_inner, x_inner_outer, y_inner_outer, x_vectors, y_pairs, 4, 4)
+//              .vectorize(x_vectors).unroll(y_pairs);
     }
 
-    // TODO: delete debug
-    out.trace_stores();
-    // update outputs
     for (int t = 0; t < T_; t++) {
       out(x, y, t) = h_[t](x, y);
     }

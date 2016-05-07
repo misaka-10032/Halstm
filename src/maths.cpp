@@ -5,7 +5,9 @@
  * @author misaka-10032 (longqic@andrew.cmu.edu)
  */
 
+#include <Halide.h>
 #include "maths.h"
+
 
 namespace halstm {
 
@@ -19,6 +21,13 @@ namespace halstm {
     B_(x, y) = transB ? B(y, x) : B(x, y);
     C_(r, x, y) = B_(x, r) * A_(r, y);
     C(x, y) += C_(RDom(0, rsize), x, y);
+
+
+    // scheduling
+    Var i, j, ii, ji, jii, iii, io, jo, t;
+    Var ti[3], tj[3];
+    int vec = 1;
+    const int s = vec * 2;
   }
 
   void Dot_3dx2d(bool transA, bool transB, const Func& A, const Func& B,
@@ -31,6 +40,10 @@ namespace halstm {
     B_(x, y) = transB ? B(y, x) : B(x, y);
     C_(r, x, y, z) = B_(x, r) * A_(r, y, z);
     C(x, y, z) += C_(RDom(0, rsize), x, y, z);
+
+    // scheduling
+    C.compute_root();
+    C.parallel(z);
   }
 
   /*
@@ -39,6 +52,8 @@ namespace halstm {
    */
   void Tanh_2d(RDom&& range, const Func& input, Func& output) {
     output(range.x, range.y) = Halide::tanh(input(range.x, range.y));
+
+    //scheduling
   }
 
   /*
@@ -48,9 +63,13 @@ namespace halstm {
   void Sigmoid_2d(RDom&& range, const Func& input, Func& output) {
     output(range.x, range.y) =
         1.0f / (1.0f + Halide::fast_exp(-input(range.x, range.y)));
+
+    // scheduling
   }
 
   void Set_2d(RDom&& range, float v, Func &func) {
     func(range.x, range.y) = v;
+
+    // scheduling
   }
 }

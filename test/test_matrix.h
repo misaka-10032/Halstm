@@ -10,6 +10,7 @@
 
 #include <cxxtest/TestSuite.h>
 #include "maths.h"
+#include "CycleTimer.h"
 
 typedef struct {
   float v[16];
@@ -174,7 +175,6 @@ public:
       TS_ASSERT_EQUALS(C.data()[ii], C0.data()[ii]);
     }
   }
-
 };
 
 #endif // HALSTM_TEST_MATRIX_H
