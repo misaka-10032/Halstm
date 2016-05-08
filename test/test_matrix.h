@@ -8,120 +8,95 @@
 #ifndef HALSTM_TEST_MATRIX_H
 #define HALSTM_TEST_MATRIX_H
 
+#include <cblas.h>
 #include <cxxtest/TestSuite.h>
 #include "maths.h"
 #include "CycleTimer.h"
+#include "utils.h"
 
 typedef struct {
   float v[16];
 } float16;
 
+const int M = 256;
+const int N = 256;
+const int K = 512;
+
 using namespace halstm;
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
-  void TestDot2dx2d_ff() {
-    Var x, y, z;
-    Func fa;
-    fa(x, y) = cast<float>(x + y);
-    Image<float> A = fa.realize(2, 4);
-
-    Func fb;
-    fb(x, y) = cast<float>(10 + x + y);
-    Image<float> B = fb.realize(4, 2);
-
-    Image<float> C0(4, 4);
-    float16 f16 = {11., 12., 13., 14., 32., 35., 38., 41.,
-                   53., 58., 63., 68., 74., 81., 88., 95.};
-    *((float16*) C0.data()) = f16;
-
-    Func fA = Func(A);
-    Func fB = Func(B);
-    Func fC("fC");
-    Dot_2dx2d(false, false, fA, fB, x, y, 2, fC);
-    Image<float> C = fC.realize(4, 4);
-
-    for (int i = 0; i < 16; i++) {
-      TS_ASSERT_EQUALS(C.data()[i], C0.data()[i]);
+  void init(float* A, float* B, float* C,
+            Image<float>& iA, Image<float>& iB, Image<float>& iC) {
+    for (int i = 0; i < M*K; i++) {
+      float r = static_cast<float> (rand()) / static_cast <float> (RAND_MAX);
+      A[i] = r;
+      iA.data()[i] = r;
     }
+    for (int i = 0; i < K*N; i++) {
+      float r = static_cast<float> (rand()) / static_cast <float> (RAND_MAX);
+      B[i] = r;
+      iB.data()[i] = r;
+    }
+    for (int i = 0; i < M*N; i++) {
+      C[i] = 0.f;
+      iC.data()[i] = 0.f;
+    }
+  }
+
+  void _test_dot_2dx2d(bool transA, bool transB) {
+    float* A = new float[M*K];
+    float* B = new float[K*N];
+    float* C = new float[M*N];
+    Image<float> iA, iB, iC(M, N, "iC");
+    if (transA)
+      iA = Image<float>(M, K, "iA");
+    else
+      iA = Image<float>(K, M, "iA");
+    if (transB)
+      iB = Image<float>(K, N, "iB");
+    else
+      iB = Image<float>(N, K, "iB");
+
+    init(A, B, C, iA, iB, iC);
+    cblas_sgemm(CblasRowMajor,
+                transA ? CblasTrans : CblasNoTrans,
+                transB ? CblasTrans : CblasNoTrans,
+                M, N, K, 1.f,
+                A, transA ? M: K,
+                B, transB ? K: N,
+                1.f, C, N);
+    Var x("x"), y("y");
+    Func fA(iA), fB(iB), fC("fC");
+    Dot_2dx2d(transA, transB, fA, fB, x, y, K, fC);
+    fC.realize(iC);
+
+    for (int i = 0; i < M*N; i++)
+      TS_ASSERT(fabs(C[i] - iC.data()[i]) < EPSILON);
+
+    delete[] A;
+    delete[] B;
+    delete[] C;
+  }
+
+  void TestDot2dx2d_ff() {
+    _test_dot_2dx2d(false, false);
+    TS_TRACE("TestDot2dx2d_ff pass!");
   }
 
   void TestDot2dx2d_ft() {
-    Var x, y, z;
-    Func fa;
-    fa(x, y) = cast<float>(x + y);
-    Image<float> A = fa.realize(2, 4);
-
-    Func fb;
-    fb(x, y) = cast<float>(10 + x + y);
-    Image<float> B = fb.realize(2, 4);
-
-    Image<float> C0(4, 4);
-    float16 f16 = {11., 12., 13., 14., 32., 35., 38., 41.,
-                   53., 58., 63., 68., 74., 81., 88., 95.};
-    *((float16*) C0.data()) = f16;
-
-    Func fA = Func(A);
-    Func fB = Func(B);
-    Func fC("fC");
-    Dot_2dx2d(false, true, fA, fB, x, y, 2, fC);
-    Image<float> C = fC.realize(4, 4);
-
-    for (int i = 0; i < 16; i++) {
-      TS_ASSERT_EQUALS(C.data()[i], C0.data()[i]);
-    }
+   _test_dot_2dx2d(false, true);
+    TS_TRACE("TestDot2dx2d_ft pass!\n");
   }
 
   void TestDot2dx2d_tf() {
-    Var x, y, z;
-    Func fa;
-    fa(x, y) = cast<float>(x + y);
-    Image<float> A = fa.realize(4, 2);
-
-    Func fb;
-    fb(x, y) = cast<float>(10 + x + y);
-    Image<float> B = fb.realize(4, 2);
-
-    Image<float> C0(4, 4);
-    float16 f16 = {11., 12., 13., 14., 32., 35., 38., 41.,
-                   53., 58., 63., 68., 74., 81., 88., 95.};
-    *((float16*) C0.data()) = f16;
-
-    Func fA = Func(A);
-    Func fB = Func(B);
-    Func fC("fC");
-    Dot_2dx2d(true, false, fA, fB, x, y, 2, fC);
-    Image<float> C = fC.realize(4, 4);
-
-    for (int i = 0; i < 16; i++) {
-      TS_ASSERT_EQUALS(C.data()[i], C0.data()[i]);
-    }
+    _test_dot_2dx2d(true, false);
+    TS_TRACE("TestDot2dx2d_tf pass!\n");
   }
 
   void TestDot2dx2d_tt() {
-    Var x, y, z;
-    Func fa;
-    fa(x, y) = cast<float>(x + y);
-    Image<float> A = fa.realize(4, 2);
-
-    Func fb;
-    fb(x, y) = cast<float>(10 + x + y);
-    Image<float> B = fb.realize(2, 4);
-
-    Image<float> C0(4, 4);
-    float16 f16 = {11., 12., 13., 14., 32., 35., 38., 41.,
-                   53., 58., 63., 68., 74., 81., 88., 95.};
-    *((float16*) C0.data()) = f16;
-
-    Func fA = Func(A);
-    Func fB = Func(B);
-    Func fC("fC");
-    Dot_2dx2d(true, true, fA, fB, x, y, 2, fC);
-
-    Image<float> C = fC.realize(4, 4);
-    for (int i = 0; i < 16; i++) {
-      TS_ASSERT_EQUALS(C.data()[i], C0.data()[i]);
-    }
+    _test_dot_2dx2d(true, true);
+    TS_TRACE("TestDot2dx2d_tt pass!\n");
   }
 
   void TestDot3dx2d_ff() {

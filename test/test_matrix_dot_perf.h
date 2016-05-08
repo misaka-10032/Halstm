@@ -6,6 +6,7 @@
 #include <cxxtest/TestSuite.h>
 #include "maths.h"
 #include "CycleTimer.h"
+#include "benchmark.h"
 
 using namespace halstm;
 
@@ -26,10 +27,14 @@ public:
 
     printf("\nTesting 3dx2d Matrix Dot Performance\n");
     double startTime = CycleTimer::currentSeconds();
-    Dot_3dx2d(false, false, fA, fB, x, y, z, k, fC);
-    Image<float> C = fC.realize(n, m, t);
+
     double endTime = CycleTimer::currentSeconds();
     double time = endTime - startTime;
+    printf("(%d x %d x %d) Matrix Dot Takes: %f s\n", m, k, n, time);
+
+    std::cout << "Running... " << std::endl;
+    double best = benchmark(20, 1, [&]() { fC.realize(n, m, t); });
+    std::cout << " took " << best * 1e3 << " msec." << std::endl;
     printf("(%d x %d x %d) Matrix Dot Takes: %f s\n", m, k, n, time);
   }
 };

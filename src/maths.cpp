@@ -7,27 +7,33 @@
 
 #include <Halide.h>
 #include "maths.h"
-
+#include "schedule.h"
 
 namespace halstm {
 
   void Dot_2dx2d(bool transA, bool transB, const Func& A, const Func& B,
                  const Var& x, const Var& y, int rsize, Func &C) {
-    // TODO: schedule
-    Var r("r");
-    Func A_("A_"), B_("B_"), C_("C_");
-    C(x, y) = (float) 0;
+    Func A_("A_"), B_("B_");
     A_(x, y) = transA ? A(y, x) : A(x, y);
     B_(x, y) = transB ? B(y, x) : B(x, y);
-    C_(r, x, y) = B_(x, r) * A_(r, y);
-    C(x, y) += C_(RDom(0, rsize), x, y);
 
+    RDom rdom(0, rsize);
+    Var xi("xi"), xo("xo"), yi("yi"), yo("yo");
+    Func C_("C_");
+    C_(x, y) = 0.f;
+    C_(x, y) += B_(x, rdom) * A_(rdom, y);
+    C(x, y) = C_(x, y);
+    C_.compute_at(C, x).vectorize(x);
+    C_.update().reorder(x, y, rdom).vectorize(x).unroll(y);
+    C.tile(x, y, xi, yi, 16, 4)
+        .vectorize(xi).unroll(yi).parallel(y);
+//    C.print_loop_nest();
 
-    // scheduling
-    Var i, j, ii, ji, jii, iii, io, jo, t;
-    Var ti[3], tj[3];
-    int vec = 1;
-    const int s = vec * 2;
+//    Var r("r");
+//    Func C_("C_");
+//    C_(r, x, y) = B_(x, r) * A_(r, y);
+//    C(x, y) += C_(RDom(0, rsize), x, y);
+
   }
 
   void Dot_3dx2d(bool transA, bool transB, const Func& A, const Func& B,
