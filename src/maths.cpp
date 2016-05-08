@@ -26,14 +26,13 @@ namespace halstm {
     C_(xi, xo, yi, yo) = 0.f;
     C_(xi, xo, yi, yo) += BB(xi, xo, rd.x, rd.y) * AA(rd.x, rd.y, yi, yo);
     C_.fuse(yo, yi, y).parallel(y);
-    C_.update().reorder({rd.x, xi, yi, rd.y, xo, yo})
+    C_.update()
+        .reorder({rd.x, xi, yi, rd.y, xo, yo})
         .parallel(yo);
-//    C_.update().reorder(x, y, rdom).vectorize(x).unroll(y);
-//    C.tile(x, y, xi, yi, 16, 4)
-//        .vectorize(xi).unroll(yi).parallel(y);
     C_.compute_root();
 
     C(x, y) = C_(x%TILE_SZ, x/TILE_SZ, y%TILE_SZ, y/TILE_SZ);
+    C.parallel(y);
 //    C.print_loop_nest();
 
 //    Var r("r");
