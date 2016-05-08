@@ -37,7 +37,7 @@ namespace halstm {
       CC.compute_root();
 
       C(x, y) = CC(x % TILE_SZ, x / TILE_SZ, y % TILE_SZ, y / TILE_SZ);
-      C.parallel(y);
+      C.parallel(y).compute_root();
     } else {
       // non-scheduled version is suitable for small matrices
       // baseline
@@ -46,6 +46,7 @@ namespace halstm {
       C_(x, y, r) = B_(x, r) * A_(r, y);
       C(x, y) = 0.f;
       C(x, y) += C_(x, y, RDom(0, rsize));
+      C.compute_root();
     }
   }
 
@@ -86,13 +87,14 @@ namespace halstm {
       Func Cf("Cf");
       Cf(x, y) = CC(x % TILE_SZ, x / TILE_SZ, y % TILE_SZ, y / TILE_SZ);
       C(x, y, z) = Cf(x, y+ysize*z);
-      C.fuse(y, z, yz).parallel(yz);
+      C.fuse(y, z, yz).parallel(yz).compute_root();
     } else {
       Var r("r");
       Func C_("C_");
       C(x, y, z) = 0.f;
       C_(r, x, y, z) = B_(x, r) * A_(r, y, z);
       C(x, y, z) += C_(RDom(0, rsize), x, y, z);
+      C.compute_root();
     }
   }
 

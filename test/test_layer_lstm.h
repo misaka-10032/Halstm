@@ -27,10 +27,11 @@
 using namespace std;
 using caffe::Blob;
 
-const int T_ = 20;
-const int N_ = 64;
-const int I_ = 128;
-const int H_ = 256;
+// must be multiple of TILE_SZ
+const int T_ = 16;
+const int N_ = 32;
+const int I_ = 32;
+const int H_ = 64;
 
 class TestLstmLayer : public CxxTest::TestSuite {
 public:
@@ -83,20 +84,18 @@ public:
 
     caffeLstmLayer->LayerSetUp(*bottom, *top);
     caffeLstmLayer->Reshape(*bottom, *top);
+    TS_TRACE("caffe layer setup!");
+    printf("caffeLstmLayer shape is (%d, %d, %d, %d)\n",
+           caffeLstmLayer->T_, caffeLstmLayer->N_,
+           caffeLstmLayer->I_, caffeLstmLayer->H_);
 
     double caffe_start_time = CycleTimer::currentSeconds();
     caffeLstmLayer->Forward(*bottom, *top);
     double caffe_end_time = CycleTimer::currentSeconds();
     double caffe_time = caffe_end_time-caffe_start_time;
 
-    TS_TRACE("caffe layer setup!");
-    printf("caffeLstmLayer shape is (%d, %d, %d, %d)\n",
-           caffeLstmLayer->T_, caffeLstmLayer->N_,
-           caffeLstmLayer->I_, caffeLstmLayer->H_);
-
     Image<float> in(I_, N_, T_, "in");
     Image<float> out(H_, N_, T_, "out");
-    // setup out bottom
     BlobToImage(*(*bottom)[0], in);
     TS_TRACE("in setup!");
 
@@ -122,10 +121,11 @@ public:
     Func fout("fout");
     lstmLayer.Forward(fin, fout);
     TS_TRACE("forward success!");
-    fout.compile_to_lowered_stmt("forward-fout.html", {}, HTML);
+
+//    fout.compile_to_lowered_stmt("forward-fout.html", {}, HTML);
+    double halstm_time = benchmark(3, 1, [&]() { fout.realize(out);});
 //    double halstm_start_time = CycleTimer::currentSeconds();
-    double halstm_time = benchmark(3, 1, [&]() {out = fout.realize(H_, N_, T_);});
-//    out = fout.realize(H_, N_, T_);
+//    fout.realize(out);
 //    double halstm_end_time = CycleTimer::currentSeconds();
 //    double halstm_time = halstm_end_time - halstm_start_time;
 
