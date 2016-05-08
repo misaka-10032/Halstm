@@ -42,10 +42,11 @@ public:
     lstm_param->set_batch_size(N_);
     lstm_param->set_num_output(H_);
     lstm_param->mutable_weight_filler()->set_type("uniform");
-    lstm_param->mutable_weight_filler()->set_min(-0.01);
-    lstm_param->mutable_weight_filler()->set_max(0.01);
-    lstm_param->mutable_bias_filler()->set_type("constant");
-    lstm_param->mutable_bias_filler()->set_value(0);
+    lstm_param->mutable_weight_filler()->set_min(-.1f);
+    lstm_param->mutable_weight_filler()->set_max(.1f);
+    lstm_param->mutable_bias_filler()->set_type("uniform");
+    lstm_param->mutable_bias_filler()->set_min(-.1f);
+    lstm_param->mutable_bias_filler()->set_max(-.1f);
     caffe::LstmLayer<float>* layer =
         new caffe::LstmLayer<float>(layer_param);
     return layer;
@@ -59,8 +60,8 @@ public:
     vector<Blob<float>*>* blobVec = new vector<Blob<float>*>();
     Blob<float>* blob = new Blob<float>(N, C, H, W);
     caffe::FillerParameter filler_param;
-    filler_param.set_min(-0.1);
-    filler_param.set_max(0.1);
+    filler_param.set_min(-.1f);
+    filler_param.set_max(.1f);
     caffe::UniformFiller<float> filler(filler_param);
     filler.Fill(blob);
     blobVec->push_back(blob);

@@ -18,11 +18,9 @@ namespace halstm {
       T_(T), N_(N), I_(I), H_(H) {
     Var x, y, z;
 
-    // give names
     Wih_ = Func("Wih_");
     Whh_ = Func("Whh_");
     b_ = Func("b_");
-    b_mul_ = Func("b_mul_");
 
     dWih_ = Func("dWih_");
     dWhh_ = Func("dWhh_");
@@ -37,7 +35,6 @@ namespace halstm {
     }
 
     // initialize
-    b_mul_(x, y, z) = 1.f;
     h0_(x, y) = 0.f;
     c0_(x, y) = 0.f;
   }
@@ -53,12 +50,6 @@ namespace halstm {
 #endif
     Var x("x"), y("y"), z("z");
     Func pre_gate_ub("pre_gate_ub");  // (4*H_, N_, T_)
-
-    // save this mul
-    // (1, N_, T_) dot (4*H_, 1)  -> (4*H_, N_, T_)
-//    Func bias("bias");
-//    Dot_3dx2d(false, false, b_mul_, b_, x, y, z, 1, N_, bias);
-//    bias.compute_root();
 
     // (I_, N_, T_) dot (4*H_, I_)  -> (4*H_, N_, T_)
     Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, N_, pre_gate_ub);

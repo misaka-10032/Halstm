@@ -72,7 +72,6 @@ namespace halstm {
     Func Wih_;    // (I_, 4*H_)
     Func Whh_;    // (H_, 4*H_)
     Func b_;      // (4*H_, 1)
-    Func b_mul_;  // (1, N_, T_)
 
     // gradients
     Func dWih_;   // (I_, 4*H_)
