@@ -16,15 +16,18 @@ using namespace Halide;
 
 namespace halstm {
 
-  void Dot_2dx2d(bool transA, bool transB, Func &A, Func &B,
-                 Var &x, Var &y, int rsize, Func &C);
+  void Dot_2dx2d(bool transA, bool transB, const Func &A, const Func &B,
+                 const Var &x, const Var &y, int rsize, Func &C,
+                 bool schedule=true);
 
-  void Dot_3dx2d(bool transA, bool transB, Func &A, Func &B,
-                 Var &x, Var &y, Var &z, int rsize, Func &C);
+  void Dot_3dx2d(bool transA, bool transB, const Func &A, const Func &B,
+                 const Var &x, const Var &y, const Var &z,
+                 int rsize, int ysize, Func &C,
+                 bool schedule=true);
 
-  void Tanh_2d(RDom &&range, Func& input, Func& output);
+  void Tanh_2d(RDom &&range, const Func& input, Func& output);
 
-  void Sigmoid_2d(RDom &&range, Func &input, Func& output);
+  void Sigmoid_2d(RDom &&range, const Func& input, Func& output);
 
   void Set_2d(RDom &&range, float v, Func &func);
 }

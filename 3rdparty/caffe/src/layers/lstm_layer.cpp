@@ -8,7 +8,7 @@
 #include "caffe/vision_layers.hpp"
 #include "CycleTimer.h"
 
-#define debug 1
+//#define debug
 
 namespace caffe {
 

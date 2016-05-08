@@ -7,8 +7,6 @@
 
 #include "utils.h"
 
-#define EPSILON 1e-5
-
 void BlobToImage(Blob<float> &blob, Image<float> &image) {
   int size = blob.count();
   memcpy(image.data(), blob.cpu_data(), size * sizeof(float));

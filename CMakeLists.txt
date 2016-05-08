@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.2)
 project(Halstm)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
+set(BENCHMARK 1)
+
 # default locations
 include_directories(/usr/local/include)
 link_directories(/usr/local/lib)
@@ -50,6 +52,14 @@ if(CXXTEST_FOUND)
             ${PROJECT_SOURCE_DIR}/test/test_matrix_dot_perf.h
             ${SRC} ${CAFFE_SRC})
     target_link_libraries(test_dot_perf ${LIBS})
+endif()
+
+if(BENCHMARK)
+    add_executable(dot_2dx2d benchmark/dot_2dx2d.cpp ${SRC} ${CAFFE_SRC})
+    target_link_libraries(dot_2dx2d ${LIBS})
+
+    add_executable(dot_3dx2d benchmark/dot_3dx2d.cpp ${SRC} ${CAFFE_SRC})
+    target_link_libraries(dot_3dx2d ${LIBS})
 endif()
 
 # binaries

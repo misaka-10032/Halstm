@@ -11,6 +11,8 @@
 #include <Halide.h>
 #include "caffe/blob.hpp"
 
+#define EPSILON (1e-3)
+
 using caffe::Blob;
 using Halide::Image;
 using std::cout;
