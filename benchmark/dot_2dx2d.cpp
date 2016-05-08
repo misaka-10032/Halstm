@@ -40,8 +40,8 @@ void compare(bool transA, bool transB) {
   Func fA("fA"), fB("fB");
   fA(x, y) = static_cast<float> (rand()) / static_cast <float> (RAND_MAX);
   fB(x, y) = static_cast<float> (rand()) / static_cast <float> (RAND_MAX);
-  transA ? fA.realize(K, M) : fA.realize(M, K);
-  transB ? fB.realize(N, K) : fB.realize(K, N);
+  transA ? fA.realize(M, K) : fA.realize(K, M);
+  transB ? fB.realize(K, N) : fB.realize(N, K);
   time = benchmark(RUNS, 1, [&]() {
     Func fC("fC");
     Dot_2dx2d(transA, transB, fA, fB, x, y, K, fC);
