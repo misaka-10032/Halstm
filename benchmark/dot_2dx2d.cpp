@@ -12,9 +12,9 @@
 
 using namespace halstm;
 
-const int M = 256;
-const int N = 256;
-const int K = 512;
+const int M = 2048;
+const int N = 2048;
+const int K = 4096;
 const int RUNS = 10;
 
 void compare(bool transA, bool transB) {
@@ -51,6 +51,7 @@ void compare(bool transA, bool transB) {
          M, K, transA ? ".T" : "", K, N, transB ? ".T" : "", time);
 }
 
+// That by official site is not faster
 void compare1(bool transA, bool transB) {
   float *A = new float[M * K];
   float *B = new float[K * N];

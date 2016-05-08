@@ -55,10 +55,10 @@ namespace halstm {
     Func bias("bias");
 
     // (1, N_, T_) dot (4*H_, 1)  -> (4*H_, N_, T_)
-    Dot_3dx2d(false, false, b_mul_, b_, x, y, z, 1, bias);
+    Dot_3dx2d(false, false, b_mul_, b_, x, y, z, 1, N_, bias);
 
     // (I_, N_, T_) dot (4*H_, I_)  -> (4*H_, N_, T_)
-    Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, pre_gate);
+    Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, N_, pre_gate);
     pre_gate(x, y, z) += bias(x, y, z);
     out(x, y, z) = (float) 0;
 

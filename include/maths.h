@@ -17,10 +17,13 @@ using namespace Halide;
 namespace halstm {
 
   void Dot_2dx2d(bool transA, bool transB, const Func &A, const Func &B,
-                 const Var &x, const Var &y, int rsize, Func &C);
+                 const Var &x, const Var &y, int rsize, Func &C,
+                 bool schedule=true);
 
   void Dot_3dx2d(bool transA, bool transB, const Func &A, const Func &B,
-                 const Var &x, const Var &y, const Var &z, int rsize, Func &C);
+                 const Var &x, const Var &y, const Var &z,
+                 int rsize, int ysize, Func &C,
+                 bool schedule=true);
 
   void Tanh_2d(RDom &&range, const Func& input, Func& output);
 

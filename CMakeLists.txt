@@ -57,6 +57,9 @@ endif()
 if(BENCHMARK)
     add_executable(dot_2dx2d benchmark/dot_2dx2d.cpp ${SRC} ${CAFFE_SRC})
     target_link_libraries(dot_2dx2d ${LIBS})
+
+    add_executable(dot_3dx2d benchmark/dot_3dx2d.cpp ${SRC} ${CAFFE_SRC})
+    target_link_libraries(dot_3dx2d ${LIBS})
 endif()
 
 # binaries
