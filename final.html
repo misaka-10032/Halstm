@@ -10,7 +10,7 @@
 
 <p>Long short-term memory (LSTM) is a recurrent neural network (RNN) architecture that is well-suited to learn from experience to classify, process and predict time series, especially when there are very long time lags of unknown size between important events. One of LSTM&#39;s successful application is in NLP area, where it is capable of fine-tuning the model&#39;s ability to handle long-term dependency. Compared to other famous deep learning models, LSTM has more complex topology in each neuron. This makes it more difficult to implement LSTM and exploit potential optimizations.</p>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lstm-mechnism.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lstm-mechnism.png" alt=""></p>
 
 <blockquote>
 <p>Image from <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">colah&#39;s blog</a></p>
@@ -18,7 +18,7 @@
 
 <p>From engineer&#39;s point of view, LSTM can be visualized like this.</p>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lstm-impl.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lstm-impl.png" alt=""></p>
 
 <blockquote>
 <p>Image from <a href="https://devblogs.nvidia.com/parallelforall/optimizing-recurrent-neural-networks-cudnn-5/">Nvidia&#39;s blog</a></p>
@@ -112,7 +112,7 @@ h_[t](x, y) = gate[2](x, y) * tanh(c_[t](x, y));</code></pre>
 
 <p>One of Halide&#39;s nice properties is its productivity for developers. Most of the complex logic in LSTM can be expressed in Halide quite concisely and elegantly. It provides developers with opportunities to fastly iterate over their code-base and verify different ideas. Below is a table of comparison on lines of code between LSTM&#39;s caffe implementation and Halide&#39;s implementation on the forward function. </p>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lines.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lines.png" alt=""></p>
 
 <h2 id="toc_9">Performance Optimization</h2>
 
@@ -122,7 +122,7 @@ h_[t](x, y) = gate[2](x, y) * tanh(c_[t](x, y));</code></pre>
 
 <p>In HaLstm, all element-wise operations are expressed in matrix scalar addition and multiplicaiton. Our policy to optimize for this kind of computation is quite straight-forward: parallelizing by matrix&#39;s row dimension, and for each row, vectorize the computation by using SSE to compute in 4-wide vectors.</p>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/matrix-simd.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/matrix-simd.png" alt=""></p>
 
 <h4 id="toc_11">Pipelining Multiple Stages</h4>
 
@@ -139,7 +139,7 @@ For certain computing dimension in B, compute A on demand. Storing partial resul
 Evaluate A completely before B starts. Could be applied when stage A&#39;s full result will be needed in stage B, or fully compute stage A may yield performance benefit. In HaLstm, each layer&#39;s parameter-input computation will be conducted in this way, due to our specialized optimization for the matrix multiplication.</li>
 </ul>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/pipelines.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/pipelines.png" alt=""></p>
 
 <h4 id="toc_12">Optimization on Matrix Multiplication</h4>
 
@@ -147,7 +147,7 @@ Evaluate A completely before B starts. Could be applied when stage A&#39;s full 
 <li><strong>Block-wise multiplication for better locality</strong></li>
 </ul>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/mul-block.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/mul-block.png" alt=""></p>
 
 <blockquote>
 <p>Slide from <a href="http://15418.courses.cs.cmu.edu/spring2016/lecture/dnneval/slide_023">lecture</a></p>
@@ -176,7 +176,7 @@ C(x, y) = CC(x % TILE_SZ, x / TILE_SZ, y % TILE_SZ, y / TILE_SZ);</code></pre>
 <li><strong>SIMD within block</strong></li>
 </ul>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/mul-simd.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/mul-simd.png" alt=""></p>
 
 <blockquote>
 <p>Slide from <a href="http://15418.courses.cs.cmu.edu/spring2016/lecture/dnneval/slide_026">lecture</a></p>
@@ -335,7 +335,7 @@ By observing the experiement result, we can argue that pipelining multiple stage
 <li>\(H=256\)</li>
 </ul>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/caffe-vs-halstm.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/caffe-vs-halstm.png" alt=""></p>
 
 <p>The actual meaning of having a larger \(N\) is to make the network have a higher throuput. As is indicated in the figure, our approach achieves about 2x speedup with CPU scheduling.</p>
 
@@ -357,6 +357,6 @@ By observing the experiement result, we can argue that pipelining multiple stage
 
 <p>As we know, Caffe-lstm (and all other ML frameworks) uses linear algebra library for matrix operations (e.g. vecLib on Mac), which is highly optimized under the hood. Curious though, what if we don&#39;t use these libraries?</p>
 
-<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/naive.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/naive.png" alt=""></p>
 
 <p>Oh Jesus...</p>

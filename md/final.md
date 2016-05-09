@@ -10,12 +10,12 @@ HaLSTM is an efficient Long short-term memory neuron network's implementation in
 
 Long short-term memory (LSTM) is a recurrent neural network (RNN) architecture that is well-suited to learn from experience to classify, process and predict time series, especially when there are very long time lags of unknown size between important events. One of LSTM's successful application is in NLP area, where it is capable of fine-tuning the model's ability to handle long-term dependency. Compared to other famous deep learning models, LSTM has more complex topology in each neuron. This makes it more difficult to implement LSTM and exploit potential optimizations.
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lstm-mechnism.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lstm-mechnism.png)
 > Image from [colah's blog](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
 
 From engineer's point of view, LSTM can be visualized like this.
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lstm-impl.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lstm-impl.png)
 > Image from [Nvidia's blog](https://devblogs.nvidia.com/parallelforall/optimizing-recurrent-neural-networks-cudnn-5/)
 
 First step is matrix multiplication $P_t=[W_f W_o W_z W_i]\,X_t+[b_f b_o b_z b_i]$ and $Q_t=[R_f R_o R_z R_i] H_{t-1}$. Second step is element-wise addition $PG_t=P_t+Q_t$. Third step is to go through gates such as $\sigma$ and $\tanh$. Finally, there would be several element-wise operations before producing $H_t$ and $C_t$ and entering next time step. Note that $P_t, t\in[0,T)$ can be computed ahead of time, because we know all the $X_t$'s in this layer.
@@ -111,7 +111,7 @@ To implement the evaluation of a deep learning model, one can use Halide to defi
 
 One of Halide's nice properties is its productivity for developers. Most of the complex logic in LSTM can be expressed in Halide quite concisely and elegantly. It provides developers with opportunities to fastly iterate over their code-base and verify different ideas. Below is a table of comparison on lines of code between LSTM's caffe implementation and Halide's implementation on the forward function. 
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lines.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lines.png)
 
 ## Performance Optimization
 
@@ -121,7 +121,7 @@ In each units of LSTM deep nets, element-wise operations are used heavily. Each 
 
 In HaLstm, all element-wise operations are expressed in matrix scalar addition and multiplicaiton. Our policy to optimize for this kind of computation is quite straight-forward: parallelizing by matrix's row dimension, and for each row, vectorize the computation by using SSE to compute in 4-wide vectors.
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/matrix-simd.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/matrix-simd.png)
 
 #### Pipelining Multiple Stages
 We have made fully use of Halide's advantage on pipelining multiple computational stages, both within and across the units of the deep nets. The idea is, instead of saving each computational stage's fully intermediate result in memory, computation of one stage will be inlined or partially saved for the next stage. Thus the producer-consumer locality can be efficiently exploited.
@@ -135,13 +135,13 @@ For two adjacent computational stages A and B, there're three choices to decide 
 - __Barriers__
 	Evaluate A completely before B starts. Could be applied when stage A's full result will be needed in stage B, or fully compute stage A may yield performance benefit. In HaLstm, each layer's parameter-input computation will be conducted in this way, due to our specialized optimization for the matrix multiplication.
 	
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/pipelines.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/pipelines.png)
 
 #### Optimization on Matrix Multiplication
 
 * __Block-wise multiplication for better locality__
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/mul-block.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/mul-block.png)
 > Slide from [lecture](http://15418.courses.cs.cmu.edu/spring2016/lecture/dnneval/slide_023)
 
 In Halide, it can be interpreted as
@@ -167,7 +167,7 @@ C(x, y) = CC(x % TILE_SZ, x / TILE_SZ, y % TILE_SZ, y / TILE_SZ);
 
 * __SIMD within block__
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/mul-simd.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/mul-simd.png)
 > Slide from [lecture](http://15418.courses.cs.cmu.edu/spring2016/lecture/dnneval/slide_026)
 
 One more line of scheduling is needed,
@@ -327,7 +327,7 @@ We also changed several parameter settings
 * $I=128$
 * $H=256$
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/caffe-vs-halstm.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/caffe-vs-halstm.png)
 
 The actual meaning of having a larger $N$ is to make the network have a higher throuput. As is indicated in the figure, our approach achieves about 2x speedup with CPU scheduling.
 
@@ -350,6 +350,6 @@ Equal amount of work is done by us.
 
 As we know, Caffe-lstm (and all other ML frameworks) uses linear algebra library for matrix operations (e.g. vecLib on Mac), which is highly optimized under the hood. Curious though, what if we don't use these libraries?
 
-![](https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/naive.png)
+![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/naive.png)
 
 Oh Jesus...
