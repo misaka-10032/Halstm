@@ -13,8 +13,7 @@
 namespace caffe {
 
     template <typename Dtype>
-    void caffe_cpu_matrix_mul(bool TransA,
-                              bool TransB, const int M, const int N, const int K,
+    void caffe_cpu_matrix_mul(bool transA, bool transB, const int M, const int N, const int K,
                               const Dtype alpha, const Dtype* A, const Dtype* B, const Dtype beta,
                               Dtype* C) {
 //  C := alpha*op( A )*op( B ) + beta*C
@@ -25,29 +24,43 @@ namespace caffe {
       if (transA) {
         AT = new int *[M];
         for(i = 0; i < M; i++)
-          A[K] = new int[K];
+          AT[i] = new int[K];
         for (i = 0; i < K; i++)
           for (j = 0; j < M; j++)
-            AT[j][i] = A[i][j];
+            AT[j][i] = A[i*M+j];
       }
       if (transB) {
         BT = new int *[K];
         for(i = 0; i < K; i++)
-          A[K] = new int[N];
+          BT[i] = new int[N];
         for (i = 0; i < N; i++)
-          for (j = 0; j < K; j++)
-            BT[j][i] = B[i][j];
+          for (j = 0; j < K; j++) {
+            BT[j][i] = B[i * K + j];
+          }
       }
 
       for (i = 0; i < M; i++)
         for (j = 0; j < N; j++) {
-          C[i][j] *= beta;
-          int dot = 0;
+          C[i*N+j] *= beta;
+          float dot = 0.f;
           for (k = 0; k < K; k++)
-            dot += (transA ? AT[i][j] : A[i][j])
-                   * (transB ? BT[i][j] : B[i][j]);
-          C[i][j] += alpha * dot;
+            dot += (transA ? AT[i][k] : A[i*K+k])
+                   * (transB ? BT[k][j] : B[k*N+j]);
+          C[i*N+j] += alpha * dot;
         }
+
+      if (transA) {
+        for (int i = 0; i < M; i++) {
+          delete[] AT[i];
+        }
+        delete[] AT;
+      }
+      if (transB) {
+        for (int i = 0; i < K; i++) {
+          delete[] BT[i];
+        }
+        delete[] BT;
+      }
     }
 
     template <typename Dtype>
@@ -56,12 +69,12 @@ namespace caffe {
     }
 
     template <typename Dtype>
-    void LstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+    void NaiveLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
                                       const vector<Blob<Dtype>*>& top) {
       clipping_threshold_ = this->layer_param_.lstm_param().clipping_threshold();
-      N_ = this->layer_param_.lstm_param().batch_size(); // batch_size
-      H_ = this->layer_param_.lstm_param().num_output(); // number of hidden units
-      I_ = bottom[0]->count() / bottom[0]->num(); // input dimension
+      this->N_ = this->layer_param_.lstm_param().batch_size(); // batch_size
+      this->H_ = this->layer_param_.lstm_param().num_output(); // number of hidden units
+      this->I_ = bottom[0]->count() / bottom[0]->num(); // input dimension
 
       // Check if we need to set up the weights
       if (this->blobs_.size() > 0) {
@@ -99,28 +112,28 @@ namespace caffe {
       vector<int> cell_shape;
       cell_shape.push_back(N_);
       cell_shape.push_back(H_);
-      c_0_.Reshape(cell_shape);
-      h_0_.Reshape(cell_shape);
-      c_T_.Reshape(cell_shape);
-      h_T_.Reshape(cell_shape);
-      h_to_h_.Reshape(cell_shape);
+      this->c_0_.Reshape(cell_shape);
+      this->h_0_.Reshape(cell_shape);
+      this->c_T_.Reshape(cell_shape);
+      this->h_T_.Reshape(cell_shape);
+      this->h_to_h_.Reshape(cell_shape);
 
       vector<int> gate_shape;
       gate_shape.push_back(N_);
       gate_shape.push_back(4);
       gate_shape.push_back(H_);
-      h_to_gate_.Reshape(gate_shape);
+      this->h_to_gate_.Reshape(gate_shape);
     }
 
     template <typename Dtype>
-    void LstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
+    void NaiveLstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
                                    const vector<Blob<Dtype>*>& top) {
       // Figure out the dimensions
-      T_ = bottom[0]->num() / N_; // length of sequence
+      this->T_ = bottom[0]->num() / this->N_; // length of sequence
 
-      CHECK_EQ(bottom[0]->num() % N_, 0) << "Input size "
+      CHECK_EQ(bottom[0]->num() % this->N_, 0) << "Input size "
                 "should be multiple of batch size";
-      CHECK_EQ(bottom[0]->count() / T_ / N_, I_) << "Input size "
+      CHECK_EQ(bottom[0]->count() / this->T_ / this->N_, this->I_) << "Input size "
                 "incompatible with inner product parameters.";
       vector<int> original_top_shape;
       original_top_shape.push_back(T_*N_);
@@ -129,10 +142,10 @@ namespace caffe {
 
       // Gate initialization
       vector<int> gate_shape;
-      gate_shape.push_back(T_);
-      gate_shape.push_back(N_);
+      gate_shape.push_back(this->T_);
+      gate_shape.push_back(this->N_);
       gate_shape.push_back(4);
-      gate_shape.push_back(H_);
+      gate_shape.push_back(this->H_);
       pre_gate_.Reshape(gate_shape);
       gate_.Reshape(gate_shape);
 
@@ -146,14 +159,14 @@ namespace caffe {
       top_.ShareDiff(*top[0]);
 
       // Set up the bias multiplier
-      vector<int> multiplier_shape(1, N_*T_);
+      vector<int> multiplier_shape(1, this->N_*this->T_);
       bias_multiplier_.Reshape(multiplier_shape);
       caffe_set(bias_multiplier_.count(), Dtype(1),
                 bias_multiplier_.mutable_cpu_data());
     }
 
     template <typename Dtype>
-    void LstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+    void NaiveLstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
                                        const vector<Blob<Dtype>*>& top) {
 #ifdef debug
   double start_time = CycleTimer::currentSeconds();
@@ -178,22 +191,22 @@ namespace caffe {
 
       // Initialize previous state
       if (clip) {
-        caffe_copy(c_0_.count(), c_T_.cpu_data(), c_0_.mutable_cpu_data());
-        caffe_copy(h_0_.count(), h_T_.cpu_data(), h_0_.mutable_cpu_data());
+        caffe_copy(this->c_0_.count(), this->c_T_.cpu_data(), this->c_0_.mutable_cpu_data());
+        caffe_copy(this->h_0_.count(), this->h_T_.cpu_data(), this->h_0_.mutable_cpu_data());
       }
       else {
-        caffe_set(c_0_.count(), Dtype(0.), c_0_.mutable_cpu_data());
-        caffe_set(h_0_.count(), Dtype(0.), h_0_.mutable_cpu_data());
+        caffe_set(this->c_0_.count(), Dtype(0.), this->c_0_.mutable_cpu_data());
+        caffe_set(this->h_0_.count(), Dtype(0.), this->h_0_.mutable_cpu_data());
       }
 
       // Compute input to hidden Forward propagation
 //      caffe_cpu_gemm(CblasNoTrans, CblasTrans, T_*N_, 4*H_, I_, Dtype(1.),
 //                     bottom_data, weight_i, Dtype(0.), pre_gate_data);
-      caffe_cpu_matrix_mul(false, true, T_*N_, 4*H_, I_, Dtype(1.),
+      caffe_cpu_matrix_mul(false, true, this->T_*this->N_, 4*this->H_, this->I_, Dtype(1.),
                            bottom_data, weight_i, Dtype(0.), pre_gate_data);
 //      caffe_cpu_gemm(CblasNoTrans, CblasNoTrans, T_*N_, 4*H_, 1, Dtype(1.),
 //                     bias_multiplier_.cpu_data(), bias, Dtype(1.), pre_gate_data);
-      caffe_cpu_matrix_mul(false, false, T_*N_, 4*H_, 1, Dtype(1.),
+      caffe_cpu_matrix_mul(false, false, this->T_*this->N_, 4*this->H_, 1, Dtype(1.),
                      bias_multiplier_.cpu_data(), bias, Dtype(1.), pre_gate_data);
 
 #ifdef debug
@@ -202,7 +215,7 @@ namespace caffe {
 #endif
 
       // Compute recurrent Forward propagation
-      for (int t = 0; t < T_; ++t) {
+      for (int t = 0; t < this->T_; ++t) {
         Dtype* h_t = top_data + top_.offset(t);
         Dtype* c_t = cell_data + cell_.offset(t);
         Dtype* pre_gate_t = pre_gate_data + pre_gate_.offset(t);
@@ -253,7 +266,7 @@ namespace caffe {
     }
 
     template <typename Dtype>
-    void LstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+    void NaiveLstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
                                         const vector<bool>& propagate_down,
                                         const vector<Blob<Dtype>*>& bottom) {
       const Dtype* top_data = top_.cpu_data();
@@ -380,10 +393,10 @@ namespace caffe {
     }
 
 #ifdef CPU_ONLY
-    STUB_GPU(LstmLayer);
+    STUB_GPU(NaiveLstmLayer);
 #endif
 
-    INSTANTIATE_CLASS(LstmLayer);
-    REGISTER_LAYER_CLASS(Lstm);
+    INSTANTIATE_CLASS(NaiveLstmLayer);
+    REGISTER_LAYER_CLASS(NaiveLstm);
 
 }  // namespace caffe

@@ -44,10 +44,6 @@ namespace halstm {
    * out: (H_, N_, T_)
    */
   void LstmLayer::Forward(const Func& in, Func &out) {
-    // TODO: schedule
-#ifdef debug
-    double start_time = CycleTimer::currentSeconds();
-#endif
     Var x("x"), y("y"), z("z");
     Func pre_gate_ub("pre_gate_ub");  // (4*H_, N_, T_)
 
@@ -85,10 +81,14 @@ namespace halstm {
       gate[2](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x + 2 * H_, y)));
       gate[3](x, y) = tanh(pre_gate_t(x + 3 * H_, y));
 
-      gate[0].parallel(y).vectorize(x, VEC_SZ).compute_root();
-      gate[1].parallel(y).vectorize(x, VEC_SZ).compute_root();
-      gate[2].parallel(y).vectorize(x, VEC_SZ).compute_root();
-      gate[3].parallel(y).vectorize(x, VEC_SZ).compute_root();
+//      for (int i = 0; i < 4; i++) {
+//        gate[i].parallel(y).vectorize(x, VEC_SZ).compute_root();
+//      }
+
+      gate[0].compute_at(c_[t], y);
+      gate[1].compute_at(c_[t], y);
+      gate[2].compute_at(h_[t], y);
+      gate[3].compute_at(c_[t], y);
 
       c_[t](x, y) = gate[1](x, y) * c_prev(x, y) +
                     gate[0](x, y) * gate[3](x, y);
@@ -96,6 +96,9 @@ namespace halstm {
 
       c_[t].parallel(y).vectorize(x, VEC_SZ).compute_root();
       h_[t].parallel(y).vectorize(x, VEC_SZ).compute_root();
+
+      c_[t].compute_root();
+      h_[t].compute_root();
     }
 
     out(x, y, z) = 0.f;

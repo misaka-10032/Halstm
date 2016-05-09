@@ -19,7 +19,7 @@ using caffe::Blob;
 using caffe::FillerParameter;
 using caffe::UniformFiller;
 
-const int RUNS = 3;
+const int RUNS = 8;
 const int nNs = 8;
 const int Ns[nNs] = {16, 32, 48, 64, 80, 96, 112, 128};
 const int T = 16;
@@ -83,6 +83,37 @@ int main(int argc, char** argv) {
     printf("%e ", time);
 
     delete caffeLstmLayer;
+  }
+  printf("\n");
+
+  printf("caffe lstm naive\n");
+  for (int i = 0; i < nNs; i++) {
+    int N = Ns[i];
+    caffe::LayerParameter layer_param;
+    caffe::LSTMParameter* lstm_param =
+        layer_param.mutable_lstm_param();
+    lstm_param->set_batch_size(N);
+    lstm_param->set_num_output(H);
+    lstm_param->mutable_weight_filler()->set_type("uniform");
+    lstm_param->mutable_weight_filler()->set_min(-.1f);
+    lstm_param->mutable_weight_filler()->set_max(.1f);
+    lstm_param->mutable_bias_filler()->set_type("uniform");
+    lstm_param->mutable_bias_filler()->set_min(-.1f);
+    lstm_param->mutable_bias_filler()->set_max(-.1f);
+    caffe::NaiveLstmLayer<float>* naiveLstmLayer =
+        new caffe::NaiveLstmLayer<float>(layer_param);
+
+    vector<Blob<float>*>* bottom = NewBlobVec(T*N, 1, I, 1);
+    vector<Blob<float>*>* top = NewBlobVec(T*N, 1, H, 1);
+    naiveLstmLayer->LayerSetUp(*bottom, *top);
+    naiveLstmLayer->Reshape(*bottom, *top);
+
+    double time = benchmark(RUNS, 1, [&]() {
+      naiveLstmLayer->Forward(*bottom, *top);
+    });
+    printf("%e ", time);
+
+    delete naiveLstmLayer;
   }
   printf("\n");
 
