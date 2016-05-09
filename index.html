@@ -9,7 +9,6 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
     <script src="https://cdn.jsdelivr.net/jquery/2.2.3/jquery.min.js"></script>
-    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
   </head>
   <body>
     <section class="page-header">
@@ -24,33 +23,38 @@
       <a href="https://github.com/misaka-10032/Halstm/tarball/master" class="btn">Download .tar.gz</a>
       !-->
     </section>
-    <section class="main-content">
+    <section class="main-content" id="main-content">
     </section>
   </body>
-  <script>
+  <script type="text/javascript" async
+          src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
     function select(btn) {
       $("#proposal").css('background-color', 'rgba(255, 255, 255, 0.08)');
       $("#checkpoint").css('background-color', 'rgba(255, 255, 255, 0.08)');
       $("#final").css('background-color', 'rgba(255, 255, 255, 0.08)');
-      btn.css('background-color', 'rgba(255, 255, 255, 0.3)')
+      btn.css('background-color', 'rgba(255, 255, 255, 0.3)');
+    }
+
+    function main_loaded() {
+      MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
     }
 
     $(document).ready(function () {
-      $(".main-content").load("final.html");
+      $("#main-content").load("final.html", main_loaded);
       select($("#final"));
 
       $("#proposal").click(function () {
-        $(".main-content").load("proposal.html");
+        $("#main-content").load("proposal.html", main_loaded);
         select($("#proposal"));
       });
 
       $("#checkpoint").click(function () {
-        $(".main-content").load("checkpoint.html");
+        $("#main-content").load("checkpoint.html", main_loaded);
         select($("#checkpoint"));
       });
 
       $("#final").click(function () {
-        $(".main-content").load("final.html");
+        $("#main-content").load("final.html", main_loaded);
         select($("#final"));
       })
     });

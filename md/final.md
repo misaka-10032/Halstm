@@ -111,7 +111,7 @@ To implement the evaluation of a deep learning model, one can use Halide to defi
 
 One of Halide's nice properties is its productivity for developers. Most of the complex logic in LSTM can be expressed in Halide quite concisely and elegantly. It provides developers with opportunities to fastly iterate over their code-base and verify different ideas. Below is a table of comparison on lines of code between LSTM's caffe implementation and Halide's implementation on the forward function. 
 
-![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lines.png)
+<img src=https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/lines.png width=80% height=80% style="display:block; margin:auto;"/>
 
 ## Performance Optimization
 
@@ -121,7 +121,7 @@ In each units of LSTM deep nets, element-wise operations are used heavily. Each 
 
 In HaLstm, all element-wise operations are expressed in matrix scalar addition and multiplicaiton. Our policy to optimize for this kind of computation is quite straight-forward: parallelizing by matrix's row dimension, and for each row, vectorize the computation by using SSE to compute in 4-wide vectors.
 
-![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/matrix-simd.png)
+<img src=https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/matrix-simd.png width=80% height=80% style="display:block; margin:auto"/>
 
 #### Pipelining Multiple Stages
 We have made fully use of Halide's advantage on pipelining multiple computational stages, both within and across the units of the deep nets. The idea is, instead of saving each computational stage's fully intermediate result in memory, computation of one stage will be inlined or partially saved for the next stage. Thus the producer-consumer locality can be efficiently exploited.
@@ -135,7 +135,7 @@ For two adjacent computational stages A and B, there're three choices to decide 
 - __Barriers__
 	Evaluate A completely before B starts. Could be applied when stage A's full result will be needed in stage B, or fully compute stage A may yield performance benefit. In HaLstm, each layer's parameter-input computation will be conducted in this way, due to our specialized optimization for the matrix multiplication.
 	
-![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/pipelines.png)
+<img src=https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/pipelines.png width=80% height=80% style="display:block; margin:auto;"/>
 
 #### Optimization on Matrix Multiplication
 
@@ -191,7 +191,7 @@ Parameter settings are
 * Input dimension $I=32$
 * Output (hidden) dimension $H=64$
 
-#### Optimization1: Matrix Multiplication
+### Optimization1: Matrix Multiplication
 
 Without any scheduling,
 
@@ -238,7 +238,7 @@ Notable computation time concentrates in `pre_gate` and `h_to_gate$i` (`$i` indi
 </tr>
 </table>
 
-#### Optimization2: SIMD and Multi-Thread Execution
+### Optimization2: SIMD and Multi-Thread Execution
 
 Besides matrix multiplication, There are several expensive element-wise operation such as sigmoid function $\sigma$ and $\tanh$. Element-wise parallelism can be exploit through SIMD and Multi-Thread Execution. For example,
 
@@ -272,7 +272,7 @@ We measured performance before and after the optimization.
 | 85.92ms | 61.42ms | 1.39x |
 -->
 
-#### Optimization3: Pipelining 
+### Optimization3: Pipelining 
 
 Originally we put barriers for each stage in the series of element-wise operations. However, they are not necessary. If computed inline, several memory operations can be saved. Further, better producer-consumer locality could be exploited if we store partial results. We were not sure which one would be the best, so we carried out three experiments. Barrier can be implemented through `compute_root()`; fully inlining can be implemented through `compute_inline()`; partial-result can be implemented through `compute_at()`.
 
@@ -305,7 +305,7 @@ By observing the experiement result, we can argue that pipelining multiple stage
 
 We observe that partial-result achieves best performance.
 
-#### Put all together
+### Put all together
 
 <table style="display:block; margin-left:auto; margin-right:auto; text-align:center">
 <tr>
@@ -327,7 +327,7 @@ We also changed several parameter settings
 * $I=128$
 * $H=256$
 
-![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/caffe-vs-halstm.png)
+<img src=https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/caffe-vs-halstm.png width=80% height=80% style="display:block; margin:auto;"/>
 
 The actual meaning of having a larger $N$ is to make the network have a higher throuput. As is indicated in the figure, our approach achieves about 2x speedup with CPU scheduling.
 
@@ -350,6 +350,6 @@ Equal amount of work is done by us.
 
 As we know, Caffe-lstm (and all other ML frameworks) uses linear algebra library for matrix operations (e.g. vecLib on Mac), which is highly optimized under the hood. Curious though, what if we don't use these libraries?
 
-![](https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/naive.png)
+<img src=https://raw.githubusercontent.com/misaka-10032/Halstm/gh-pages/assets/naive.png height=80% width=80% style="display:block; margin:auto"/>
 
 Oh Jesus...
