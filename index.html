@@ -17,6 +17,7 @@
       <h2 class="project-tagline">Halide-LSTM</h2>
       <a href="#" class="btn" id="proposal">Proposal</a>
       <a href="#" class="btn" id="checkpoint">Checkpoint</a>
+      <a href="#" class="btn" id="final">Final</a>
       <a href="https://github.com/misaka-10032/Halstm" class="btn">View on GitHub</a>
       <!--
       <a href="https://github.com/misaka-10032/Halstm/zipball/master" class="btn">Download .zip</a>
@@ -30,12 +31,13 @@
     function select(btn) {
       $("#proposal").css('background-color', 'rgba(255, 255, 255, 0.08)');
       $("#checkpoint").css('background-color', 'rgba(255, 255, 255, 0.08)');
+      $("#final").css('background-color', 'rgba(255, 255, 255, 0.08)');
       btn.css('background-color', 'rgba(255, 255, 255, 0.3)')
     }
 
     $(document).ready(function () {
-      $(".main-content").load("checkpoint.html");
-      select($("#checkpoint"));
+      $(".main-content").load("final.html");
+      select($("#final"));
 
       $("#proposal").click(function () {
         $(".main-content").load("proposal.html");
@@ -45,6 +47,11 @@
       $("#checkpoint").click(function () {
         $(".main-content").load("checkpoint.html");
         select($("#checkpoint"));
+      });
+
+      $("#final").click(function () {
+        $(".main-content").load("final.html");
+        select($("#final"));
       })
     });
   </script>

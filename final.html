@@ -1,0 +1,362 @@
+<h1 id="toc_0">HaLSTM: An LSTM Implementation in Halide</h1>
+
+<h2 id="toc_1">Summary</h2>
+
+<p>HaLSTM is an efficient Long short-term memory neuron network&#39;s implementation in Halide. Halide has some nice properties as a domian specific language that motivates us to use it for a deep learning project: it enables pipelining multiple computational stages and decoupling the algorithm and the scheduling of it. This project correctly achieves correctness and performance optimization for the evaluation of LSTM model, and the result shows that Halide could be considered as an deasible option for quick development and fine-tuning the model in machine learning area.</p>
+
+<h2 id="toc_2">Background</h2>
+
+<h4 id="toc_3">LSTM Neural Network</h4>
+
+<p>Long short-term memory (LSTM) is a recurrent neural network (RNN) architecture that is well-suited to learn from experience to classify, process and predict time series, especially when there are very long time lags of unknown size between important events. One of LSTM&#39;s successful application is in NLP area, where it is capable of fine-tuning the model&#39;s ability to handle long-term dependency. Compared to other famous deep learning models, LSTM has more complex topology in each neuron. This makes it more difficult to implement LSTM and exploit potential optimizations.</p>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lstm-mechnism.png" alt=""></p>
+
+<blockquote>
+<p>Image from <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">colah&#39;s blog</a></p>
+</blockquote>
+
+<p>From engineer&#39;s point of view, LSTM can be visualized like this.</p>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lstm-impl.png" alt=""></p>
+
+<blockquote>
+<p>Image from <a href="https://devblogs.nvidia.com/parallelforall/optimizing-recurrent-neural-networks-cudnn-5/">Nvidia&#39;s blog</a></p>
+</blockquote>
+
+<p>First step is matrix multiplication \(P_t=[W_f W_o W_z W_i]\,X_t+[b_f b_o b_z b_i]\) and \(Q_t=[R_f R_o R_z R_i] H_{t-1}\). Second step is element-wise addition \(PG_t=P_t+Q_t\). Third step is to go through gates such as \(\sigma\) and \(\tanh\). Finally, there would be several element-wise operations before producing \(H_t\) and \(C_t\) and entering next time step. Note that \(P_t, t\in[0,T)\) can be computed ahead of time, because we know all the \(X_t\)&#39;s in this layer.</p>
+
+<h4 id="toc_4">Halide</h4>
+
+<p><a href="http://halide-lang.org/">Halide</a> is an domain-specific language embedded in C++ designed for image processing. While we find it&#39;s potential to be applied in deep learning area, since the evaluation and training of a neural networks involves lots of matrix operations. The semantics of Halide could be smoothly applied to describe these operations. Halide provides properties of constructing pipelines and decoupling algorithm and scheduling, which can make the code more concise and emperical.</p>
+
+<!--
+Halide abstracts operations into `Var`s and `Func`s. It separates a program into _define_,  _schedule_ and _realize_ parts. This is an example of _define_ part of _blur_ operation (code from [official website](http://halide-lang.org/)).
+
+```cpp
+  Func blur_x, blur_y;
+  Var x, y, xi, yi;
+
+  // The algorithm - no storage or order
+  blur_x(x, y) = (input(x-1, y) + input(x, y) + input(x+1, y))/3;
+  blur_y(x, y) = (blur_x(x, y-1) + blur_x(x, y) + blur_x(x, y+1))/3;
+```
+
+This is _schedule_ part.
+
+```
+  blur_y.tile(x, y, xi, yi, 256, 32)
+        .vectorize(xi, 8).parallel(y);
+  blur_x.compute_at(blur_y, x).vectorize(x, 8);
+```
+
+This is _realize_ part.
+
+```
+  Image<float> image(M, N);
+  blur_y.realize(image);
+```
+-->
+
+<h2 id="toc_5">Implementation</h2>
+
+<h4 id="toc_6">LSTM-forward in Halide</h4>
+
+<p>Halide definition and scheduling for LSTM-forward is written in <code>void LstmLayer::Forward(const Func&amp; in, Func&amp; out)</code> of <em>lstm.cpp</em>. </p>
+
+<ul>
+<li><code>in</code> is a \(T\times N\times I\) tensor</li>
+<li><code>out</code> is a \(T\times N \times H\) tensor</li>
+</ul>
+
+<p>where</p>
+
+<ul>
+<li>\(T\) is sequence length</li>
+<li>\(N\) is batch size</li>
+<li>\(I\) is dimension of input layer</li>
+<li>\(H\) is dimension of output (hidden) layer</li>
+</ul>
+
+<p>First, it goes through a linear transform \(P=WX+b\).</p>
+
+<pre><code class="language-none">Dot_3dx2d(false, true, in, Wih_, x, y, z, I_, N_, pre_gate_ub);
+pre_gate(x, y, z) = pre_gate_ub(x, y, z) + b_(x, 0);</code></pre>
+
+<p>Second, it enters a loop of time steps. In each step \(t\), it first has a linear transform on the previous time step \(Q_t=R_t H_t\), and do an element-wise addition with it \(PG_t = R_t + P_t\).</p>
+
+<pre><code class="language-none">Dot_2dx2d(false, true, h_prev, Whh_, x, y, H_, h_to_gate);
+pre_gate_t(x, y) += h_to_gate(x, y);</code></pre>
+
+<p>Then, it goes through a set of gates.</p>
+
+<pre><code class="language-none">Func gate[4];
+gate[0](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x, y)));    
+gate[1](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x + H_, y)));
+gate[2](x, y) = 1.0f / (1.0f + fast_exp(-pre_gate_t(x + 2 * H_, y)));
+gate[3](x, y) = tanh(pre_gate_t(x + 3 * H_, y));</code></pre>
+
+<p>Finally, intermediate states \(H_t\) and \(C_t\) are produced.</p>
+
+<pre><code class="language-none">c_[t](x, y) = gate[1](x, y) * c_prev(x, y) +
+              gate[0](x, y) * gate[3](x, y);
+h_[t](x, y) = gate[2](x, y) * tanh(c_[t](x, y));</code></pre>
+
+<h4 id="toc_7">Correctness Test</h4>
+
+<p>To ensure our implementation is correct, <a href="https://github.com/junhyukoh/caffe-lstm">Caffe-lstm</a> is integrated into our project unchanged. We control input and weights the same, and compare the output. As we use different scheduling, result can be a little bit different; any difference within <em>1e-3</em> is deemed acceptable.</p>
+
+<h4 id="toc_8">Developing Productivity</h4>
+
+<p>To implement the evaluation of a deep learning model, one can use Halide to define a pipeline of operations on data. HaLstm replace layers and LSTM network unit&#39;s inner structure with Halide pipelines. Compared to common programming languages, the Halide code can be very concise.</p>
+
+<p>One of Halide&#39;s nice properties is its productivity for developers. Most of the complex logic in LSTM can be expressed in Halide quite concisely and elegantly. It provides developers with opportunities to fastly iterate over their code-base and verify different ideas. Below is a table of comparison on lines of code between LSTM&#39;s caffe implementation and Halide&#39;s implementation on the forward function. </p>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/lines.png" alt=""></p>
+
+<h2 id="toc_9">Performance Optimization</h2>
+
+<h4 id="toc_10">Exploiting Basic Parallelism</h4>
+
+<p>In each units of LSTM deep nets, element-wise operations are used heavily. Each gate&#39;s output are applied to historical and state data all in this manner. This provides us potential to exploit  more parallelsim and vectorization, since the computation during this process are independent to each other without further communication.</p>
+
+<p>In HaLstm, all element-wise operations are expressed in matrix scalar addition and multiplicaiton. Our policy to optimize for this kind of computation is quite straight-forward: parallelizing by matrix&#39;s row dimension, and for each row, vectorize the computation by using SSE to compute in 4-wide vectors.</p>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/matrix-simd.png" alt=""></p>
+
+<h4 id="toc_11">Pipelining Multiple Stages</h4>
+
+<p>We have made fully use of Halide&#39;s advantage on pipelining multiple computational stages, both within and across the units of the deep nets. The idea is, instead of saving each computational stage&#39;s fully intermediate result in memory, computation of one stage will be inlined or partially saved for the next stage. Thus the producer-consumer locality can be efficiently exploited.</p>
+
+<p>For two adjacent computational stages A and B, there&#39;re three choices to decide how to schedule them according to the properties of the runtime :</p>
+
+<ul>
+<li><strong>Full Pipelining</strong>
+Inlining computation of A within B. Could be applied when the program is bandwidth bound. In HaLstm, many trivial operations are fully pipelined by default to avoid extra memory access. </li>
+<li><strong>Storing Partial Result</strong> 
+For certain computing dimension in B, compute A on demand. Storing partial result of previous stage may exploit producer-consumer locality better compared to applying barriers. In HaLstm, we used this method for four gates within the stage of producing one unit&#39;s final output.</li>
+<li><strong>Barriers</strong>
+Evaluate A completely before B starts. Could be applied when stage A&#39;s full result will be needed in stage B, or fully compute stage A may yield performance benefit. In HaLstm, each layer&#39;s parameter-input computation will be conducted in this way, due to our specialized optimization for the matrix multiplication.</li>
+</ul>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/pipelines.png" alt=""></p>
+
+<h4 id="toc_12">Optimization on Matrix Multiplication</h4>
+
+<ul>
+<li><strong>Block-wise multiplication for better locality</strong></li>
+</ul>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/mul-block.png" alt=""></p>
+
+<blockquote>
+<p>Slide from <a href="http://15418.courses.cs.cmu.edu/spring2016/lecture/dnneval/slide_023">lecture</a></p>
+</blockquote>
+
+<p>In Halide, it can be interpreted as</p>
+
+<pre><code class="language-none">Func AA(&quot;AA&quot;), BB(&quot;BB&quot;);
+Var xi(&quot;xi&quot;), xo(&quot;xo&quot;), yi(&quot;yi&quot;), yo(&quot;yo&quot;), xy(&quot;xy&quot;);
+AA(xi, yi, xo, yo) = A_(xi + xo * TILE_SZ, yi + yo * TILE_SZ);
+BB(xi, yi, xo, yo) = B_(xi + xo * TILE_SZ, yi + yo * TILE_SZ);
+
+RDom rd(0, TILE_SZ, 0, rsize / TILE_SZ);
+Func CC(&quot;CC&quot;);
+CC(xi, xo, yi, yo) = 0.f;
+CC.fuse(yo, yi, y).parallel(y);
+CC(xi, xo, yi, yo) += BB(xi, rd.x, xo, rd.y) * AA(rd.x, yi, rd.y, yo);
+
+CC.update()
+  .reorder({rd.x, xi, yi, rd.y, xo, yo})
+CC.compute_root();
+
+C(x, y) = CC(x % TILE_SZ, x / TILE_SZ, y % TILE_SZ, y / TILE_SZ);</code></pre>
+
+<ul>
+<li><strong>SIMD within block</strong></li>
+</ul>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/mul-simd.png" alt=""></p>
+
+<blockquote>
+<p>Slide from <a href="http://15418.courses.cs.cmu.edu/spring2016/lecture/dnneval/slide_026">lecture</a></p>
+</blockquote>
+
+<p>One more line of scheduling is needed,</p>
+
+<pre><code class="language-none">CC.update()
+  .reorder({rd.x, xi, yi, rd.y, xo, yo})
+  .parallel(yo).vectorize(xi);  // &lt;--</code></pre>
+
+<h2 id="toc_13">Experiment &amp; Analysis</h2>
+
+<p>Halide generates optimized code in runtime. When being <code>realize</code> for the first time, it includes both JIT time and run time; in second time, the generated code will be cached, so then the time will be the actual run time. <code>benchmark(...)</code> is a helper function to obtain the actual run time.</p>
+
+<p>All experiments are done on <a href="https://support.apple.com/kb/SP719?locale=en_US">MBP2015</a> with 2.5GHz quad-core Intel Core i7 processor. Horizontally, the results are compared with <a href="https://github.com/junhyukoh/caffe-lstm">Caffe-lstm</a> . Vertically, they are also compared with themselves for different scheduling strategies.</p>
+
+<p>Parameter settings are</p>
+
+<ul>
+<li>Sequence length \(T=16\)</li>
+<li>Batch size \(N=32\)</li>
+<li>Input dimension \(I=32\)</li>
+<li>Output (hidden) dimension \(H=64\)</li>
+</ul>
+
+<h4 id="toc_14">Optimization1: Matrix Multiplication</h4>
+
+<p>Without any scheduling,</p>
+
+<!--
+| Caffe-lstm | Halstm (before) | Speedup |
+|:-:|:-:|:-:|
+| 0.00483937 | 0.014822 | 0.33 |
+-->
+
+<table style="display:block; margin-left:auto; margin-right:auto; text-align:center;">
+<tr>
+<th>Caffe-lstm</th>
+<th>Halstm (before)</th>
+<th>Speedup</th>
+</tr>
+<tr>
+<td>5.47 ms</td>
+<td>14.82 ms</td>
+<td>0.37x</td>
+</tr>
+</table>
+
+<p>Now let&#39;s begin to close the gap! Halide provides a profiling tool. If we set environment variable <code>HL_JIT_TARGET=host-profile</code>, we can get</p>
+
+<pre><code class="language-none">pre_gate:              201.181900ms   (31%)
+h_to_gate$1:           29.072832ms    (4%)
+h_to_gate$2:           28.954476ms    (4%)
+...</code></pre>
+
+<p>Notable computation time concentrates in <code>pre_gate</code> and <code>h_to_gate$i</code> (<code>$i</code> indicates in \(i\)th loop). Trace back to code, <code>pre_gate</code> is a <em>3d-by-2d</em> matrix multiplication; <code>h_to_gate$i</code> are <em>2d-by-2d</em> matrix multiplications. All other operations are element-wise. Therefore, we begin to optimize matrix multiplication (see previous section for detail). After optimization, we get</p>
+
+<table style="display:block; margin-left:auto; margin-right:auto; text-align:center">
+<tr>
+<th>Halstm (before)</th>
+<th>Halstm (after)</th>
+<th>Speedup</th>
+</tr>
+<tr>
+<td>14.82 ms</td>
+<td>6.51 ms</td>
+<td>2.28x</td>
+</tr>
+</table>
+
+<h4 id="toc_15">Optimization2: SIMD and Multi-Thread Execution</h4>
+
+<p>Besides matrix multiplication, There are several expensive element-wise operation such as sigmoid function \(\sigma\) and \(\tanh\). Element-wise parallelism can be exploit through SIMD and Multi-Thread Execution. For example,</p>
+
+<pre><code class="language-none">c_[t].parallel(y).vectorize(x, VEC_SZ).compute_root();
+h_[t].parallel(y).vectorize(x, VEC_SZ).compute_root();</code></pre>
+
+<!--
+To measure the effect of parallelizing element-wise operations in our LSTM model, we conduct a group of experiment with the setting of with and without this optimization (parallelize on matrix's rows and vectorize within each row). The experiment is done on a single layer with 16 units. Batch size is 32, with input dimension of 128 and hidden state dimension of 128. The results are showed in the below table.
+-->
+
+<p>We measured performance before and after the optimization.</p>
+
+<table style="display:block; margin-left:auto; margin-right:auto; text-align:center">
+<tr>
+<th>Before</th>
+<th>After</th>
+<th>Speedup</th>
+</tr>
+<tr>
+<td>6.51 ms</td>
+<td>2.87 ms</td>
+<td>2.27x</td>
+</tr>
+</table>
+
+<!--
+| Without Parallelism | With Parallelism | Speedup |
+|:-:|:-:|:-:|
+| 85.92ms | 61.42ms | 1.39x |
+-->
+
+<h4 id="toc_16">Optimization3: Pipelining</h4>
+
+<p>Originally we put barriers for each stage in the series of element-wise operations. However, they are not necessary. If computed inline, several memory operations can be saved. Further, better producer-consumer locality could be exploited if we store partial results. We were not sure which one would be the best, so we carried out three experiments. Barrier can be implemented through <code>compute_root()</code>; fully inlining can be implemented through <code>compute_inline()</code>; partial-result can be implemented through <code>compute_at()</code>.</p>
+
+<table style="display:block; margin-left:auto; margin-right:auto; text-align:center">
+<tr>
+<th>Barrier</th>
+<th>Inline</th>
+<th>Partial</th>
+</tr>
+<tr>
+<td>2.87 ms</td>
+<td>2.74 ms</td>
+<td>2.46 ms</td>
+</tr>
+</table>
+
+<!--
+To measure the effect of pipelining multiple computational stages, we test our model's performance with two settings: with and without pipeling optimizaitons. The experiment is done on a single layer with 16 units. Batch size is 32, with input dimension of 128 and hidden state dimension of 128. The results are showed in the below table. 
+
+
+| Without Pipilining | With Pipelining | Speedup |
+|:-:|:-:|:-:|
+| 85.92ms | 61.42ms | 1.39x |
+
+
+By observing the experiement result, we can argue that pipelining multiple stages achieves moderate speed-up, due to better producer-consumer locality.
+-->
+
+<p>We observe that partial-result achieves best performance.</p>
+
+<h4 id="toc_17">Put all together</h4>
+
+<table style="display:block; margin-left:auto; margin-right:auto; text-align:center">
+<tr>
+<th>Caffe-lstm</th>
+<th>Halstm (after)</th>
+<th>Speedup</th>
+</tr>
+<tr>
+<td>5.47 ms</td>
+<td>2.46 ms</td>
+<td>2.22x</td>
+</tr>
+</table>
+
+<p>We also changed several parameter settings</p>
+
+<ul>
+<li>\(T=16\)</li>
+<li>\(N=16, 32, 48, 64, 80, 96, 112, 128\)</li>
+<li>\(I=128\)</li>
+<li>\(H=256\)</li>
+</ul>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/caffe-vs-halstm.png" alt=""></p>
+
+<p>The actual meaning of having a larger \(N\) is to make the network have a higher throuput. As is indicated in the figure, our approach achieves about 2x speedup with CPU scheduling.</p>
+
+<h2 id="toc_18">References</h2>
+
+<p>[1]Jonathan Ragan-Kelley, Connelly Barnes, Andrew Adams, Sylvain Paris, Frdo Durand, and Saman Amarasinghe. 2013. Halide: a language and compiler for optimizing parallelism, locality, and recomputation in image processing pipelines. In Proceedings of the 34th ACM SIGPLAN conference on Programming language design and implementation (PLDI ’13). ACM, New York, NY, USA, 519-530.</p>
+
+<p>[2]S. Hochreiter, J. Schmidhuber, Long short-term memory, Neural Computation, 9 (1997), pp. 1735–1780</p>
+
+<p>[3]Ian Goodfellow, Yoshua Bengio, and Aaron Courville, Sequence Modeling: Recurrent and Recursive Nets, Deep Learning, Book in preparation for MIT Press, http://www.deeplearningbook.org</p>
+
+<p>[4]Jia, Yangqing and Shelhamer, Evan and Donahue, Jeff and Karayev, Sergey and Long, Jonathan and Girshick, Ross and Guadarrama, Sergio and Darrell, Trevor. Caffe: Convolutional Architecture for Fast Feature Embedding. 2014. arXiv:1408.5093</p>
+
+<h2 id="toc_19">Collaborative Work Division</h2>
+
+<p>Equal amount of work is done by us.</p>
+
+<h2 id="toc_20">Epilog</h2>
+
+<p>As we know, Caffe-lstm (and all other ML frameworks) uses linear algebra library for matrix operations (e.g. vecLib on Mac), which is highly optimized under the hood. Curious though, what if we don&#39;t use these libraries?</p>
+
+<p><img src="https://raw.github.com/misaka-10032/Halstm/gh-pages/assets/naive.png" alt=""></p>
+
+<p>Oh Jesus...</p>
